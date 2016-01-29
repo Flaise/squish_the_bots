@@ -25,5 +25,4 @@ use squish_the_bots::space::*;
 
 
 fn main() {
-    println!("Hello, world!");
 }

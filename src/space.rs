@@ -5,11 +5,11 @@ pub enum Direction {
     North,
     East,
     South,
-    West
+    West,
 }
 
 
-#[derive(PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Offset {
     x: i32,
     y: i32,
@@ -23,7 +23,7 @@ impl Offset {
     }
 }
 impl From<Direction> for Offset {
-    fn from(other: Direction) -> Offset {
+    fn from(other: Direction) -> Self {
         match other {
             Direction::North => Offset { x: 0, y: -1 },
             Direction::East => Offset { x: 1, y: 0 },
@@ -38,7 +38,6 @@ impl From<(i32, i32)> for Offset {
         Offset { x: x, y: y }
     }
 }
-
 impl Add<Position> for Offset {
     type Output = Position;
     
@@ -49,6 +48,8 @@ impl Add<Position> for Offset {
         }
     }
 }
+
+
 impl Add<Position> for (i32, i32) {
     type Output = Position;
     
@@ -62,17 +63,23 @@ impl Add<Position> for (i32, i32) {
 }
 
 
-#[derive(PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Position {
     x: i32,
     y: i32,
 }
 impl Position {
-    fn new(x: i32, y: i32) -> Position {
+    pub fn new(x: i32, y: i32) -> Position {
         Position {
             x: x,
             y: y,
         }
+    }
+}
+impl From<(i32, i32)> for Position {
+    fn from(other: (i32, i32)) -> Self {
+        let (x, y) = other;
+        Position { x: x, y: y }
     }
 }
 impl Shr<Position> for Position {
@@ -91,7 +98,7 @@ impl<R: Into<Offset>+Sized> Add<R> for Position {
     type Output = Position;
     
     fn add(self, other: R) -> Position {
-        let offset: Offset = other.into();
+        let offset = other.into();
         Position {
             x: self.x + offset.x,
             y: self.y + offset.y,
