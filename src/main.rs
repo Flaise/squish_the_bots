@@ -24,5 +24,17 @@ use squish_the_bots::space::*;
 // }
 
 
+enum Entity {
+    Bot {
+        position: Position,
+        ticks_until_active: u8,
+    },
+    Block {
+        position: Position,
+    },
+    Abyss,
+}
+
+
 fn main() {
 }
