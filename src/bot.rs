@@ -1,20 +1,12 @@
 use std::error::Error;
-use std::fmt;
 
 use space::*;
 
 
 #[derive(Debug)]
-pub struct NotFoundError;
-impl Error for NotFoundError {
-    fn description(&self) -> &str {
-        "No bot found at the specified location."
-    }
-}
-impl fmt::Display for NotFoundError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
-    }
+pub enum BotError {
+    NotFound,
+    AlreadyOccupied,
 }
 
 
@@ -28,22 +20,30 @@ impl Bots {
         }
     }
     
-    fn make(&mut self, position: Position) {
+    fn make(&mut self, position: Position) -> Result<(), BotError> {
+        if self.occupied(position) {
+            return Err(BotError::AlreadyOccupied);
+        }
         self.instances.push(position);
+        Ok(())
     }
     
     fn occupied(&self, position: Position) -> bool {
         self.instances.contains(&position)
     }
     
-    fn shift(&mut self, from: Position, to: Position) -> Result<(), NotFoundError> {
+    // TODO?: -> Result2<(), AlreadyOccupiedError, NotFoundError>
+    fn shift(&mut self, from: Position, to: Position) -> Result<(), BotError> {
+        if self.occupied(to) {
+            return Err(BotError::AlreadyOccupied);
+        }
         for e in self.instances.iter_mut() {
             if e == &from {
                 *e = to;
                 return Ok(())
             }
         }
-        Err(NotFoundError)
+        Err(BotError::NotFound)
     }
 }
 
@@ -59,12 +59,12 @@ fn instantiation() {
     assert!(!bots.occupied(b));
     assert!(!bots.occupied(c));
     
-    bots.make(a);
+    bots.make(a).unwrap();
     assert!(bots.occupied(a));
     assert!(!bots.occupied(b));
     assert!(!bots.occupied(c));
     
-    bots.make(b);
+    bots.make(b).unwrap();
     assert!(bots.occupied(a));
     assert!(bots.occupied(b));
     assert!(!bots.occupied(c));
@@ -91,7 +91,31 @@ fn movement_nonexistent() {
     let mut bots = Bots::new();
     
     match bots.shift(Position::new(0, 1), Position::new(2, 5)) {
-        Ok(_) => panic!(),
-        Err(_) => ()
+        Err(BotError::NotFound) => (),
+        _ => panic!(),
     }
+}
+
+#[test]
+fn already_occupied() {
+    let a = Position::new(0, 0);
+    let b = Position::new(2, 0);
+    let mut bots = Bots::new();
+    
+    bots.make(a).unwrap();
+    bots.make(b).unwrap();
+    
+    match bots.make(a) {
+        Err(BotError::AlreadyOccupied) => (),
+        _ => panic!(),
+    }
+    assert!(bots.occupied(a));
+    assert!(bots.occupied(b));
+    
+    match bots.shift(a, b) {
+        Err(BotError::AlreadyOccupied) => (),
+        _ => panic!(),
+    }
+    assert!(bots.occupied(a));
+    assert!(bots.occupied(b));
 }
