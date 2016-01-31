@@ -90,16 +90,43 @@ impl Area {
             None => PushResult::Success,
             Some(EntityType::Abyss) => PushResult::Abyss,
             Some(EntityType::Bot) => {
-                self.shift(focus, destination);
-                PushResult::Success
+                match self.type_at(destination) {
+                    None => {
+                        self.shift(focus, destination);
+                        PushResult::Success
+                    },
+                    Some(_) => {
+                        self.remove(focus);
+                        PushResult::Success
+                    }
+                }
             },
             Some(EntityType::Block) => {
-                if self.type_at(destination) == Some(EntityType::Block) {
-                    PushResult::TooHeavy
-                }
-                else {
-                    self.shift(focus, destination);
-                    PushResult::Success
+                match self.type_at(destination) {
+                    None => {
+                        self.shift(focus, destination);
+                        PushResult::Success
+                    },
+                    Some(EntityType::Block) => PushResult::TooHeavy,
+                    Some(EntityType::Abyss) => {
+                        self.remove(focus);
+                        PushResult::Success
+                    },
+                    Some(EntityType::Bot) => {
+                        let destination2 = destination + direction;
+                        match self.type_at(destination2) {
+                            None => {
+                                self.shift(destination, destination2);
+                                self.shift(focus, destination);
+                                PushResult::Success
+                            },
+                            Some(_) => {
+                                self.remove(destination);
+                                self.shift(focus, destination);
+                                PushResult::Success
+                            },
+                        }
+                    },
                 }
             },
         }
@@ -150,7 +177,7 @@ fn test_data() -> (Position, Position, Position, Area) {
     (
         Position::new(0, 0),
         Position::new(2, 0),
-        Position::new(5, 3),
+        Position::new(5, 4),
         Area::new(Rectangle::wh(10 * East + 10 * South)),
     )
 }
@@ -254,12 +281,86 @@ fn skydiving() {
 fn shove_into_abyss() {
     for dir in vec![North, East, South, West] {
         let (_, _, c, mut area) = test_data();
-        
         area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Abyss);
+        area.make(c + dir, EntityType::Bot);
+        area.make(c + dir + dir, EntityType::Abyss);
         area.bot_go(c, dir);
         assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Abyss));
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Abyss));
+        
+        let (_, _, c, mut area) = test_data();
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Block);
+        area.make(c + dir + dir, EntityType::Abyss);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Abyss));
+        
+        let (_, _, c, mut area) = test_data();
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Block);
+        area.make(c + dir * 2, EntityType::Bot);
+        area.make(c + dir * 3, EntityType::Abyss);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir * 2), Some(EntityType::Block));
+        assert_eq!(area.type_at(c + dir * 3), Some(EntityType::Abyss));
+        
+        let (_, _, c, mut area) = test_data();
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Bot);
+        area.make(c + dir * 2, EntityType::Bot);
+        area.make(c + dir * 3, EntityType::Abyss);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir * 2), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir * 3), Some(EntityType::Abyss));
+    }
+}
+
+#[test]
+fn squish_directly() {
+    for dir in vec![North, East, South, West] {
+        let (_, _, c, mut area) = test_data();
+        
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Bot);
+        area.make(c + dir + dir, EntityType::Block);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+    }
+}
+
+#[test]
+fn squish_indirectly() {
+    for dir in vec![North, East, South, West] {
+        let (_, _, c, mut area) = test_data();
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Block);
+        area.make(c + dir + dir, EntityType::Bot);
+        area.make(c + dir + dir + dir, EntityType::Block);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+        assert_eq!(area.type_at(c + dir + dir + dir), Some(EntityType::Block));
+        
+        let (_, _, c, mut area) = test_data();
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Block);
+        area.make(c + dir + dir, EntityType::Bot);
+        area.make(c + dir + dir + dir, EntityType::Bot);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+        assert_eq!(area.type_at(c + dir + dir + dir), Some(EntityType::Bot));
     }
 }
 
