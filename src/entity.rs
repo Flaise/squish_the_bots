@@ -27,7 +27,7 @@ enum Entity {
 pub struct Area {
     contents: Vec<Entity>,
     bounds: Rectangle,
-    ticks_elapsed: u16
+    ticks_elapsed: u16,
 }
 impl Area {
     fn new(bounds: Rectangle) -> Area {
@@ -47,8 +47,19 @@ impl Area {
         self.contents.push(entity);
     }
     
-    fn bot_go(&mut self, position: Position, direction: Direction) {
-        
+    fn bot_go(&mut self, source: Position, direction: Direction) {
+        for element in self.contents.iter_mut() {
+            match *element {
+                Entity::Bot { position, .. } if position == source => {
+                    *element = Entity::Bot {
+                        position: position + direction,
+                        ticks_until_action: 3,
+                    };
+                    return;
+                },
+                _ => (),
+            }
+        }
     }
     
     fn bot_drill(&mut self, position: Position, direction: Direction) {
@@ -76,18 +87,26 @@ impl Area {
             None => false,
         }
     }
+    
+    fn tick(&mut self) {
+        self.ticks_elapsed += 1;
+    }
 }
 
 
-fn test_positions() -> (Position, Position, Position) {
-    (Position::new(0, 0), Position::new(2, 0), Position::new(5, 3))
+fn test_data() -> (Position, Position, Position, Area) {
+    (
+        Position::new(0, 0),
+        Position::new(2, 0),
+        Position::new(5, 3),
+        Area::new(Rectangle::wh(10 * East + 10 * South)),
+    )
 }
 
 
 #[test]
 fn occupation() {
-    let (a, b, c) = test_positions();
-    let mut area = Area::new(Rectangle::wh(10 * East + 10 * South));
+    let (a, b, c, mut area) = test_data();
     
     area.make(a, EntityType::Bot);
     assert!(area.occupied(a));
@@ -105,11 +124,65 @@ fn occupation() {
 
 #[test]
 fn abyss_around_arena() {
-    let area = Area::new(Rectangle::wh(10 * East + 10 * South));
+    let (_, _, _, area) = test_data();
+    
     assert_eq!(area.type_at(Position::new(0, 0)), None);
     assert_eq!(area.type_at(Position::new(-1, 0)), Some(EntityType::Abyss));
     assert_eq!(area.type_at(Position::new(0, -1)), Some(EntityType::Abyss));
     assert_eq!(area.type_at(Position::new(10, 0)), Some(EntityType::Abyss));
     assert_eq!(area.type_at(Position::new(0, 10)), Some(EntityType::Abyss));
     assert_eq!(area.type_at(Position::new(10, 10)), Some(EntityType::Abyss));
+}
+
+#[test]
+fn travelment() {
+    for dir in vec![North, East, South, West] {
+        let (_, _, c, mut area) = test_data();
+        
+        area.make(c, EntityType::Bot);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+    }
+}
+
+#[test]
+fn pushing() {
+    for dir in vec![North, East, South, West] {
+        let (_, _, c, mut area) = test_data();
+        
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Block);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+    }
+}
+
+#[test]
+fn pushing_too_heavy() {
+    for dir in vec![North, East, South, West] {
+        let (_, _, c, mut area) = test_data();
+        
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Block);
+        area.make(c + dir + dir, EntityType::Block);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Block));
+        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+    }
+}
+
+#[test]
+fn elapsation() {
+    let (_, _, c, mut area) = test_data();
+    assert_eq!(area.ticks_elapsed, 0);
+    
+    area.tick();
+    assert_eq!(area.ticks_elapsed, 1);
+    
+    area.tick();
+    assert_eq!(area.ticks_elapsed, 2);
 }

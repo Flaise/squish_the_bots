@@ -1,7 +1,7 @@
 use std::ops::{Add, Shr, Mul};
 use std::cmp::{max, min};
 
-
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Direction {
     North,
     East,
@@ -257,4 +257,10 @@ fn containment() {
     assert!(rec.contains(Position::zero() + Direction::North * 2));
     assert!(rec.contains(Position::zero() + Direction::North * 2 + Direction::West * 2));
     assert!(rec.contains(Position::zero() + Direction::North * 2 + Direction::East * 3));
+}
+
+#[test]
+fn direction_equality() {
+    assert_eq!(Direction::East, Direction::East);
+    assert!(Direction::East != Direction::West);
 }
