@@ -10,6 +10,13 @@ enum EntityType {
 }
 
 
+enum PushResult {
+    Success,
+    TooHeavy,
+    Abyss,
+}
+
+
 enum Entity {
     Bot {
         position: Position,
@@ -47,18 +54,63 @@ impl Area {
         self.contents.push(entity);
     }
     
-    fn bot_go(&mut self, source: Position, direction: Direction) {
+    fn remove(&mut self, position: Position) {
+        self.contents.retain(|element| {
+            position != match *element {
+                Entity::Bot { position, .. } => position,
+                Entity::Block { position } => position,
+                Entity::Abyss { position } => position,
+            }
+        });
+    }
+    
+    fn shift(&mut self, source: Position, destination: Position) {
         for element in self.contents.iter_mut() {
             match *element {
-                Entity::Bot { position, .. } if position == source => {
+                Entity::Bot { position, ticks_until_action } if position == source => {
                     *element = Entity::Bot {
-                        position: position + direction,
-                        ticks_until_action: 3,
+                        position: destination,
+                        ticks_until_action: ticks_until_action,
                     };
+                    return;
+                },
+                Entity::Block { position } if position == source => {
+                    *element = Entity::Block { position: destination };
                     return;
                 },
                 _ => (),
             }
+        }
+    }
+    
+    fn push(&mut self, focus: Position, direction: Direction) -> PushResult {
+        let destination = focus + direction;
+        
+        match self.type_at(focus) {
+            None => PushResult::Success,
+            Some(EntityType::Abyss) => PushResult::Abyss,
+            Some(EntityType::Bot) => {
+                self.shift(focus, destination);
+                PushResult::Success
+            },
+            Some(EntityType::Block) => {
+                if self.type_at(destination) == Some(EntityType::Block) {
+                    PushResult::TooHeavy
+                }
+                else {
+                    self.shift(focus, destination);
+                    PushResult::Success
+                }
+            },
+        }
+    }
+    
+    fn bot_go(&mut self, source: Position, direction: Direction) {
+        let destination = source + direction;
+        match self.push(destination, direction) {
+            PushResult::Success => self.shift(source, destination),
+            PushResult::Abyss => self.remove(source),
+            PushResult::TooHeavy => (),
         }
     }
     
@@ -172,6 +224,42 @@ fn pushing_too_heavy() {
         assert_eq!(area.type_at(c), Some(EntityType::Bot));
         assert_eq!(area.type_at(c + dir), Some(EntityType::Block));
         assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+    }
+}
+
+#[test]
+fn skydiving() {
+    for dir in vec![North, East, South, West] {
+        let (_, _, c, mut area) = test_data();
+        
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Abyss);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Abyss));
+    }
+    
+    for dir in vec![North, East, South, West] {
+        let mut area = Area::new(Rectangle::corners(Position::zero(), Position::zero()));
+        assert_eq!(area.type_at(Position::zero()), None);
+        
+        area.make(Position::zero(), EntityType::Bot);
+        area.bot_go(Position::zero(), dir);
+        assert_eq!(area.type_at(Position::zero()), None);
+        assert_eq!(area.type_at(Position::zero() + dir), Some(EntityType::Abyss));
+    }
+}
+
+#[test]
+fn shove_into_abyss() {
+    for dir in vec![North, East, South, West] {
+        let (_, _, c, mut area) = test_data();
+        
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Abyss);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Abyss));
     }
 }
 

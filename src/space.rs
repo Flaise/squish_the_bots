@@ -23,6 +23,15 @@ impl Mul<Direction> for i32 {
         other * self
     }
 }
+impl Add<Direction> for Direction {
+    type Output = Offset;
+    
+    fn add(self, other: Direction) -> Offset {
+        let a: Offset = self.into();
+        let b: Offset = other.into();
+        a + b
+    }
+}
 
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -36,6 +45,9 @@ impl Offset {
             x: x,
             y: y,
         }
+    }
+    pub fn zero() -> Offset {
+        Offset { x: 0, y: 0 }
     }
 }
 impl From<Direction> for Offset {
@@ -112,7 +124,7 @@ impl Position {
             y: y,
         }
     }
-    fn zero() -> Position {
+    pub fn zero() -> Position {
         Position { x: 0, y: 0 }
     }
 }
@@ -209,6 +221,14 @@ fn add_offsets() {
 }
 
 #[test]
+fn add_directions() {
+    let north_offset: Offset = Direction::North.into();
+    let east_offset: Offset = Direction::East.into();
+    
+    assert_eq!(Direction::North + Direction::East, north_offset + east_offset);
+}
+
+#[test]
 fn offset_from_positions() {
     assert_eq!(Position::new(-1, 1) >> Position::new(-2, 2), Offset::new(-1, 1));
     assert_eq!(Position::new(2, 1) >> Position::new(2, 2), Offset::new(0, 1));
@@ -245,6 +265,7 @@ fn offset_from_directions() {
 
 #[test]
 fn containment() {
+    assert!(Rectangle::wh(Offset::new(1, 1)).contains(Position::new(0, 0)));
     assert!(Rectangle::wh(Offset::new(2, 2)).contains(Position::new(0, 0)));
     assert!(Rectangle::wh(Offset::new(2, 2)).contains(Position::new(1, 1)));
     assert!(!Rectangle::wh(Offset::new(2, 2)).contains(Position::new(1, 2)));
