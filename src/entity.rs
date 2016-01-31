@@ -1,159 +1,115 @@
 use space::*;
+use space::Direction::*;
 
 
-#[derive(Debug)]
-pub enum EntityError {
-    NotFound,
-    AlreadyOccupied,
+#[derive(PartialEq, Debug)]
+enum EntityType {
+    Bot,
+    Block,
+    Abyss,
 }
 
 
-struct Entity<D> {
-    position: Position,
-    tag: D,
-}
-impl<D> Entity<D> {
-    fn new(position: Position, tag: D) -> Entity<D> {
-        Entity {
-            position: position,
-            tag: tag
-        }
-    }
+enum Entity {
+    Bot {
+        position: Position,
+        ticks_until_action: u8,
+    },
+    Block {
+        position: Position,
+    },
+    Abyss {
+        position: Position,
+    },
 }
 
 
-pub struct Entities<D> {
-    instances: Vec<Entity<D>>
+pub struct Area {
+    contents: Vec<Entity>,
+    bounds: Rectangle,
+    ticks_elapsed: u16
 }
-impl<D> Entities<D> {
-    fn new() -> Entities<D> {
-        Entities {
-            instances: Vec::new()
+impl Area {
+    fn new(bounds: Rectangle) -> Area {
+        Area {
+            contents: Vec::new(),
+            bounds: bounds,
+            ticks_elapsed: 0,
         }
     }
     
-    fn add(&mut self, instance: Entity<D>) -> Result<(), EntityError> {
-        if self.occupied(instance.position) {
-            return Err(EntityError::AlreadyOccupied);
+    fn make(&mut self, position: Position, entType: EntityType) {
+        let entity = match entType {
+            EntityType::Bot => Entity::Bot { position: position, ticks_until_action: 0 },
+            EntityType::Block => Entity::Block { position: position },
+            EntityType::Abyss => Entity::Abyss { position: position },
+        };
+        self.contents.push(entity);
+    }
+    
+    fn bot_go(&mut self, position: Position, direction: Direction) {
+        
+    }
+    
+    fn bot_drill(&mut self, position: Position, direction: Direction) {
+        
+    }
+    
+    fn type_at(&self, dest: Position) -> Option<EntityType> {
+        if !self.bounds.contains(dest) {
+            return Some(EntityType::Abyss)
         }
-        self.instances.push(instance);
-        Ok(())
+        for element in &self.contents {
+            match *element {
+                Entity::Bot { position, .. } if dest == position => return Some(EntityType::Bot),
+                Entity::Block { position } if dest == position => return Some(EntityType::Block),
+                Entity::Abyss { position } if dest == position => return Some(EntityType::Abyss),
+                _ => (),
+            }
+        }
+        None
     }
     
     fn occupied(&self, position: Position) -> bool {
-        for inst in &self.instances {
-            if inst.position == position {
-                return true
-            }
+        match self.type_at(position) {
+            Some(_) => true,
+            None => false,
         }
-        false
-    }
-    
-    // TODO?: -> Result2<(), AlreadyOccupiedError, NotFoundError>
-    fn shift(&mut self, from: Position, to: Position) -> Result<(), EntityError> {
-        if self.occupied(to) {
-            return Err(EntityError::AlreadyOccupied);
-        }
-        for inst in self.instances.iter_mut() {
-            if inst.position == from {
-                inst.position = to;
-                return Ok(())
-            }
-        }
-        Err(EntityError::NotFound)
-    }
-    
-    fn removeAt(&mut self, position: Position) {
-        self.instances.retain(|element| element.position != position);
     }
 }
 
 
+fn test_positions() -> (Position, Position, Position) {
+    (Position::new(0, 0), Position::new(2, 0), Position::new(5, 3))
+}
+
+
 #[test]
-fn instantiation() {
-    let a = Position::new(0, 0);
-    let b = Position::new(2, 0);
-    let c = Position::new(-1, 3);
+fn occupation() {
+    let (a, b, c) = test_positions();
+    let mut area = Area::new(Rectangle::wh(10 * East + 10 * South));
     
-    let mut ents = Entities::new();
-    assert!(!ents.occupied(a));
-    assert!(!ents.occupied(b));
-    assert!(!ents.occupied(c));
+    area.make(a, EntityType::Bot);
+    assert!(area.occupied(a));
+    assert_eq!(area.type_at(a), Some(EntityType::Bot));
+    assert!(!area.occupied(b));
+    assert!(!area.occupied(c));
     
-    ents.add(Entity::new(a, ())).unwrap();
-    assert!(ents.occupied(a));
-    assert!(!ents.occupied(b));
-    assert!(!ents.occupied(c));
-    
-    ents.add(Entity::new(b, ())).unwrap();
-    assert!(ents.occupied(a));
-    assert!(ents.occupied(b));
-    assert!(!ents.occupied(c));
+    area.make(b, EntityType::Block);
+    assert!(area.occupied(a));
+    assert_eq!(area.type_at(a), Some(EntityType::Bot));
+    assert!(area.occupied(b));
+    assert_eq!(area.type_at(b), Some(EntityType::Block));
+    assert!(!area.occupied(c));
 }
 
 #[test]
-fn movement() {
-    let a = Position::new(0, 0);
-    let b = Position::new(2, 0);
-    
-    let mut ents = Entities::new();
-    
-    ents.add(Entity::new(a, ())).unwrap();
-    assert!(ents.occupied(a));
-    assert!(!ents.occupied(b));
-    
-    ents.shift(a, b).unwrap();
-    assert!(!ents.occupied(a));
-    assert!(ents.occupied(b));
-}
-
-#[test]
-fn movement_nonexistent() {
-    let mut ents: Entities<()> = Entities::new();
-    
-    match ents.shift(Position::new(0, 1), Position::new(2, 5)) {
-        Err(EntityError::NotFound) => (),
-        _ => panic!(),
-    }
-}
-
-#[test]
-fn already_occupied() {
-    let a = Position::new(0, 0);
-    let b = Position::new(2, 0);
-    let mut ents = Entities::new();
-    
-    ents.add(Entity::new(a, ())).unwrap();
-    ents.add(Entity::new(b, ())).unwrap();
-    
-    match ents.add(Entity::new(a, ())) {
-        Err(EntityError::AlreadyOccupied) => (),
-        _ => panic!(),
-    }
-    assert!(ents.occupied(a));
-    assert!(ents.occupied(b));
-    
-    match ents.shift(a, b) {
-        Err(EntityError::AlreadyOccupied) => (),
-        _ => panic!(),
-    }
-    assert!(ents.occupied(a));
-    assert!(ents.occupied(b));
-}
-
-#[test]
-fn position_removal() {
-    let a = Position::new(0, 0);
-    let b = Position::new(2, 0);
-    let mut ents = Entities::new();
-    
-    ents.add(Entity::new(a, ())).unwrap();
-    ents.add(Entity::new(b, ())).unwrap();
-    
-    assert!(ents.occupied(a));
-    assert!(ents.occupied(b));
-    
-    ents.removeAt(a);
-    assert!(!ents.occupied(a));
-    assert!(ents.occupied(b));
+fn abyss_around_arena() {
+    let area = Area::new(Rectangle::wh(10 * East + 10 * South));
+    assert_eq!(area.type_at(Position::new(0, 0)), None);
+    assert_eq!(area.type_at(Position::new(-1, 0)), Some(EntityType::Abyss));
+    assert_eq!(area.type_at(Position::new(0, -1)), Some(EntityType::Abyss));
+    assert_eq!(area.type_at(Position::new(10, 0)), Some(EntityType::Abyss));
+    assert_eq!(area.type_at(Position::new(0, 10)), Some(EntityType::Abyss));
+    assert_eq!(area.type_at(Position::new(10, 10)), Some(EntityType::Abyss));
 }
