@@ -1,5 +1,7 @@
 use std::ops::{Add, Shr, Mul};
 use std::cmp::{max, min};
+use self::Direction::*;
+
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Direction {
@@ -23,15 +25,6 @@ impl Mul<Direction> for i32 {
         other * self
     }
 }
-impl Add<Direction> for Direction {
-    type Output = Offset;
-    
-    fn add(self, other: Direction) -> Offset {
-        let a: Offset = self.into();
-        let b: Offset = other.into();
-        a + b
-    }
-}
 
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -53,17 +46,11 @@ impl Offset {
 impl From<Direction> for Offset {
     fn from(other: Direction) -> Self {
         match other {
-            Direction::North => Offset { x: 0, y: -1 },
-            Direction::East => Offset { x: 1, y: 0 },
-            Direction::South => Offset { x: 0, y: 1 },
-            Direction::West => Offset { x: -1, y: 0 },
+            North => Offset { x: 0, y: -1 },
+            East => Offset { x: 1, y: 0 },
+            South => Offset { x: 0, y: 1 },
+            West => Offset { x: -1, y: 0 },
         }
-    }
-}
-impl From<(i32, i32)> for Offset {
-    fn from(other: (i32, i32)) -> Self {
-        let (x, y) = other;
-        Offset { x: x, y: y }
     }
 }
 impl Add<Position> for Offset {
@@ -76,16 +63,6 @@ impl Add<Position> for Offset {
         }
     }
 }
-impl Add<Offset> for Offset {
-    type Output = Offset;
-    
-    fn add(self, other: Offset) -> Offset {
-        Offset {
-            x: self.x + other.x,
-            y: self.y + other.y,
-        }
-    }
-}
 impl Mul<i32> for Offset {
     type Output = Offset;
     
@@ -93,20 +70,6 @@ impl Mul<i32> for Offset {
         Offset {
             x: self.x * other,
             y: self.y * other,
-        }
-    }
-}
-
-
-
-impl Add<Position> for (i32, i32) {
-    type Output = Position;
-    
-    fn add(self, other: Position) -> Position {
-        let offset: Offset = self.into();
-        Position {
-            x: offset.x + other.x,
-            y: offset.y + other.y,
         }
     }
 }
@@ -126,12 +89,6 @@ impl Position {
     }
     pub fn zero() -> Position {
         Position { x: 0, y: 0 }
-    }
-}
-impl From<(i32, i32)> for Position {
-    fn from(other: (i32, i32)) -> Self {
-        let (x, y) = other;
-        Position { x: x, y: y }
     }
 }
 impl Shr<Position> for Position {
@@ -157,6 +114,27 @@ impl<R: Into<Offset>+Sized> Add<R> for Position {
         }
     }
 }
+impl<R: Into<Offset>+Sized> Add<R> for Offset {
+    type Output = Offset;
+    
+    fn add(self, other: R) -> Offset {
+        let offset = other.into();
+        Offset {
+            x: self.x + offset.x,
+            y: self.y + offset.y,
+        }
+    }
+}
+impl<R: Into<Offset>+Sized> Add<R> for Direction {
+    type Output = Offset;
+    
+    fn add(self, other: R) -> Offset {
+        let a: Offset = self.into();
+        let b: Offset = other.into();
+        a + b
+    }
+}
+
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Rectangle {
@@ -190,7 +168,7 @@ impl Rectangle {
             x: max(a.x, b.x),
             y: max(a.y, b.y),
         };
-        Rectangle::xywh(topleft, topleft >> bottomright + Direction::South + Direction::East)
+        Rectangle::xywh(topleft, topleft >> bottomright + South + East)
     }
     pub fn corner_offsets(a: Offset, b: Offset) -> Rectangle {
         Rectangle::corners(a + Position::zero(), b + Position::zero())
@@ -222,10 +200,16 @@ fn add_offsets() {
 
 #[test]
 fn add_directions() {
-    let north_offset: Offset = Direction::North.into();
-    let east_offset: Offset = Direction::East.into();
+    let north_offset: Offset = North.into();
+    let east_offset: Offset = East.into();
     
-    assert_eq!(Direction::North + Direction::East, north_offset + east_offset);
+    assert_eq!(North + East, north_offset + east_offset);
+}
+
+#[test]
+fn add_direction_offset() {
+    assert_eq!(North + Offset::zero(), Offset::new(0, -1));
+    assert_eq!(Offset::zero() + North, Offset::new(0, -1));
 }
 
 #[test]
@@ -237,30 +221,22 @@ fn offset_from_positions() {
 
 #[test]
 fn add_direction_position() {
-    assert_eq!(Position::new(0, 0) + Direction::North + Direction::South, Position::new(0, 0));
-    assert_eq!(Position::new(0, 0) + Direction::East + Direction::West, Position::new(0, 0));
-}
-
-#[test]
-fn add_tuple_position() {
-    assert_eq!(Position::new(0, 0) + (0, 0), Position::new(0, 0));
-    assert_eq!(Position::new(0, 0) + (1, 0), Position::new(1, 0));
-    assert_eq!(Position::new(2, 1) + (-1, 0), Position::new(1, 1));
-    assert_eq!(Position::new(-1, 1) + (-1, 1), Position::new(-2, 2));
+    assert_eq!(Position::new(0, 0) + North + South, Position::new(0, 0));
+    assert_eq!(Position::new(0, 0) + East + West, Position::new(0, 0));
 }
 
 #[test]
 fn offset_multiplication() {
     assert_eq!(Offset::new(1, 1) * 3, Offset::new(3, 3));
     assert_eq!(Offset::new(0, -1) * 4, Offset::new(0, -4));
-    assert_eq!(Direction::North * 2, Offset::new(0, -2));
+    assert_eq!(North * 2, Offset::new(0, -2));
 }
 
 #[test]
 fn offset_from_directions() {
-    assert_eq!(Direction::North * 3 + Direction::East * 2, Offset::new(2, -3));
-    assert_eq!(Direction::North * -3 + Direction::East * 2, Offset::new(2, 3));
-    assert_eq!(Direction::South * 3 + Direction::East * 2, Offset::new(2, 3));
+    assert_eq!(North * 3 + East * 2, Offset::new(2, -3));
+    assert_eq!(North * -3 + East * 2, Offset::new(2, 3));
+    assert_eq!(South * 3 + East * 2, Offset::new(2, 3));
 }
 
 #[test]
@@ -273,15 +249,14 @@ fn containment() {
     assert!(!Rectangle::wh(Offset::new(2, 2)).contains(Position::new(2, 0)));
     assert!(!Rectangle::wh(Offset::new(2, 2)).contains(Position::new(-1, 0)));
     
-    let rec = Rectangle::corner_offsets(Direction::North * 2 + Direction::West * 2,
-                                        Direction::South * 4 + Direction::East * 3);
-    assert!(rec.contains(Position::zero() + Direction::North * 2));
-    assert!(rec.contains(Position::zero() + Direction::North * 2 + Direction::West * 2));
-    assert!(rec.contains(Position::zero() + Direction::North * 2 + Direction::East * 3));
+    let rec = Rectangle::corner_offsets(North * 2 + West * 2, South * 4 + East * 3);
+    assert!(rec.contains(Position::zero() + North * 2));
+    assert!(rec.contains(Position::zero() + North * 2 + West * 2));
+    assert!(rec.contains(Position::zero() + North * 2 + East * 3));
 }
 
 #[test]
 fn direction_equality() {
-    assert_eq!(Direction::East, Direction::East);
-    assert!(Direction::East != Direction::West);
+    assert_eq!(East, East);
+    assert!(East != West);
 }

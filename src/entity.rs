@@ -147,7 +147,7 @@ impl Area {
     
     fn type_at(&self, dest: Position) -> Option<EntityType> {
         if !self.bounds.contains(dest) {
-            return Some(EntityType::Abyss)
+            return Some(EntityType::Abyss);
         }
         for element in &self.contents {
             match *element {
@@ -229,13 +229,22 @@ fn travelment() {
 fn pushing() {
     for dir in vec![North, East, South, West] {
         let (_, _, c, mut area) = test_data();
-        
         area.make(c, EntityType::Bot);
         area.make(c + dir, EntityType::Block);
         area.bot_go(c, dir);
         assert_eq!(area.type_at(c), None);
         assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
         assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+        
+        let (_, _, c, mut area) = test_data();
+        area.make(c, EntityType::Bot);
+        area.make(c + dir, EntityType::Block);
+        area.make(c + dir * 2, EntityType::Bot);
+        area.bot_go(c, dir);
+        assert_eq!(area.type_at(c), None);
+        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        assert_eq!(area.type_at(c + dir * 2), Some(EntityType::Block));
+        assert_eq!(area.type_at(c + dir * 3), Some(EntityType::Bot));
     }
 }
 
