@@ -157,6 +157,7 @@ mod tests {
     use space::Direction::*;
     use entity::*;
     use std::io::Write;
+    use std::rc::Rc;
     
     extern crate memstream;
     use self::memstream::*;
@@ -239,4 +240,20 @@ mod tests {
         assert_eq!(serialize_notification(Notification::YouSee(Some(EntityType::Abyss))),
                    vec![6, 3]);
     }
+    
+    // #[test]
+    // fn notification_death() {
+    //     let a = Position::zero();
+    //
+    //     let mut commands = Rc::new(MemStream::new());
+    //     let mut notifications = Rc::new(MemStream::new());
+    //
+    //     let mut area = Area::new(Rectangle::wh(North * 10 + East * 10));
+    //     area.make(a, EntityType::Bot);
+    //     area.bot_observe(a, commands.clone(), notifications.clone());
+    //
+    //     // assert_eq!(notifications.unwrap(), vec![]);
+    //     area.bot_go(a, West);
+    //     // assert_eq!(notifications.unwrap(), vec![2]);
+    // }
 }

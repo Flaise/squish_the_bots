@@ -1,5 +1,7 @@
-extern crate squish_the_bots;
-use squish_the_bots::space::*;
+mod space;
+mod entity;
+mod action;
+mod stream;
 
 
 fn main() {

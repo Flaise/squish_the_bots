@@ -1,5 +1,6 @@
 use space::*;
 use space::Direction::*;
+use std::io::{Read, Write};
 
 
 #[derive(PartialEq, Debug)]
@@ -37,7 +38,7 @@ pub struct Area {
     ticks_elapsed: u16,
 }
 impl Area {
-    fn new(bounds: Rectangle) -> Area {
+    pub fn new(bounds: Rectangle) -> Area {
         Area {
             contents: Vec::new(),
             bounds: bounds,
@@ -45,7 +46,7 @@ impl Area {
         }
     }
     
-    fn make(&mut self, position: Position, entType: EntityType) {
+    pub fn make(&mut self, position: Position, entType: EntityType) {
         let entity = match entType {
             EntityType::Bot => Entity::Bot { position: position, ticks_until_action: 0 },
             EntityType::Block => Entity::Block { position: position },
@@ -142,6 +143,11 @@ impl Area {
     }
     
     pub fn bot_drill(&mut self, position: Position, direction: Direction) {
+        
+    }
+    
+    pub fn bot_observe<R: Read+Sized, W: Write+Sized>(&mut self, position: Position,
+                                                      commands: R, notifications: W) {
         
     }
     

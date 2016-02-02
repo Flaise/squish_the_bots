@@ -5,6 +5,3 @@ authors = ["Flaise <x.Flaise@gmail.com>"]
 
 [dependencies]
 memstream = { git = "https://github.com/Flaise/rust-memstream.git" }
-
-[lib]
-doctest = false

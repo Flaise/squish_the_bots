@@ -151,10 +151,7 @@ impl Rectangle {
     
     pub fn wh(size: Offset) -> Rectangle {
         Rectangle {
-            topleft: Position {
-                x: 0,
-                y: 0,
-            },
+            topleft: Position::zero(),
             size: size,
         }
     }
@@ -175,9 +172,16 @@ impl Rectangle {
     }
     
     pub fn contains(self, position: Position) -> bool {
-        let bottomright = self.topleft + self.size;
-        ((position.x >= self.topleft.x) != (position.x >= bottomright.x)) &&
-            ((position.y >= self.topleft.y) != (position.y >= bottomright.y))
+        let mut p = position;
+        let mut bottomright = self.topleft + self.size;
+        if bottomright.x < self.topleft.x {
+            p.x -= 1;
+        }
+        if bottomright.y < self.topleft.y {
+            p.y -= 1;
+        }
+        ((p.x >= self.topleft.x) != (p.x >= bottomright.x)) &&
+            ((p.y >= self.topleft.y) != (p.y >= bottomright.y))
     }
 }
 
@@ -249,7 +253,16 @@ fn containment() {
     assert!(!Rectangle::wh(Offset::new(2, 2)).contains(Position::new(2, 0)));
     assert!(!Rectangle::wh(Offset::new(2, 2)).contains(Position::new(-1, 0)));
     
+    assert!(Rectangle::wh(Offset::new(-2, -2)).contains(Position::new(0, 0)));
+    assert!(Rectangle::wh(Offset::new(-2, -2)).contains(Position::new(-1, 0)));
+    assert!(!Rectangle::wh(Offset::new(-2, -2)).contains(Position::new(-2, 0)));
+    
     let rec = Rectangle::corner_offsets(North * 2 + West * 2, South * 4 + East * 3);
+    assert!(rec.contains(Position::zero() + North * 2));
+    assert!(rec.contains(Position::zero() + North * 2 + West * 2));
+    assert!(rec.contains(Position::zero() + North * 2 + East * 3));
+    
+    let rec = Rectangle::corner_offsets(South * 4 + East * 3, North * 2 + West * 2);
     assert!(rec.contains(Position::zero() + North * 2));
     assert!(rec.contains(Position::zero() + North * 2 + West * 2));
     assert!(rec.contains(Position::zero() + North * 2 + East * 3));
