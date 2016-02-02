@@ -1,0 +1,56 @@
+<h1>Squish the Bots</h1>
+
+This is how programmers arm-wrestle.
+
+<h2>The Rules - for wetware</h2>
+
+In a 2d environment divided into a grid of equally sized squares (essentially like a Chess board),
+a set of bots attempt to destroy each other. Every object takes up one grid square and the types
+of objects are bots, blocks, and floors. Any square not occupied by a floor is an empty void that
+objects can fall into. A fallen object is gone and can never return to the environment. Time
+progresses in units called "ticks". Each tick, every bot in the environment can take an action if
+it has not recently taken an action that takes more than one tick to complete. The actions a bot
+can take are to use its radar to examine one square in the environment, to move an adjacent
+square, or to turn on its drill and force its way into an adjacent square. Moving takes longer
+than using radar and drilling takes longer than moving, regardless of what was in the bot's way.
+Drilling another object destroys it. Moving against a block or bot pushes it. If a bot attempts to
+push a block against another block, it doesn't move because 2 blocks are too heavy for one bot to
+push. If a bot pushes a block against a bot, both objects are pushed successfully. If a bot pushes
+a bot against a block, the block doesn't move and the bot being pushed is squished.
+
+<h2>What Makes These Rules Interesting</h2>
+
+The environment has a discrete state and given an environment of finite size, it has a finite
+number of possible states. Despite this, because observing a portion of the environment takes a
+nonzero amount of time, no model of the environment built out of these kinds of observations can
+possibly be authoritative. As in quantum mechanics, the best measurements that can be made are
+statistical and have margins of error. Einstein believed that the
+universe was a deterministic place and so the way quantum mechanics works was frustrating to him.
+I have found Einstein's determinism.
+
+<h2>The Rules - for software</h2>
+
+Write an app that connects to the server via a socket and uses the stream of bytes coming out of
+the server to decide what stream of bytes to send in. The address is currently _________. You are
+advised to make your app read the command line arguments so that if the server address changes,
+you will not have to modify (and possibly recompile) your source code.
+<br><br>
+All the messages allowed by the protocol are listed below. The ones listed as "input" messages are
+sent by the bot to the server and the "output" messages are sent by the server to each bot. No
+messages are valid as both input and output.
+<br><br>
+Because there are no message delimeters in the protocol, if the server receives any messages that
+do not conform to these specs, the server does not have enough information to recover from the
+error and will simply drop your connection and your bot will lose the round. Make sure that your
+bot's code is stable before having it compete.
+
+<h3>Input</h3>
+
+<h4>Look At</h4>
+1 as an unsigned byte
+a signed byte
+a signed byte
+
+positive Y is north, positive X is east
+
+<h3>Output</h3>
