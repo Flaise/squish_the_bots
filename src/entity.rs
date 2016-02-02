@@ -3,7 +3,7 @@ use space::Direction::*;
 
 
 #[derive(PartialEq, Debug)]
-enum EntityType {
+pub enum EntityType {
     Bot,
     Block,
     Abyss,
@@ -54,7 +54,7 @@ impl Area {
         self.contents.push(entity);
     }
     
-    fn remove(&mut self, position: Position) {
+    pub fn remove(&mut self, position: Position) {
         self.contents.retain(|element| {
             position != match *element {
                 Entity::Bot { position, .. } => position,
@@ -132,7 +132,7 @@ impl Area {
         }
     }
     
-    fn bot_go(&mut self, source: Position, direction: Direction) {
+    pub fn bot_go(&mut self, source: Position, direction: Direction) {
         let destination = source + direction;
         match self.push(destination, direction) {
             PushResult::Success => self.shift(source, destination),
@@ -141,11 +141,11 @@ impl Area {
         }
     }
     
-    fn bot_drill(&mut self, position: Position, direction: Direction) {
+    pub fn bot_drill(&mut self, position: Position, direction: Direction) {
         
     }
     
-    fn type_at(&self, dest: Position) -> Option<EntityType> {
+    pub fn type_at(&self, dest: Position) -> Option<EntityType> {
         if !self.bounds.contains(dest) {
             return Some(EntityType::Abyss);
         }
