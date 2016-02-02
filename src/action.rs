@@ -20,7 +20,7 @@ enum Notification {
     YourTurn,
     YouSee(Option<EntityType>),
     YouDied,
-    ActionSuccessful,
+    Success,
     TooHeavy,
     NewRound,
 }
@@ -122,6 +122,18 @@ fn parse_next(bytes: &mut Read) -> Command {
     }
 }
 
+fn serialize_notification(notification: Notification) -> Vec<u8> {
+    match notification {
+        Notification::YourTurn => vec![1],
+        Notification::YouDied => vec![2],
+        Notification::Success => vec![3],
+        Notification::TooHeavy => vec![4],
+        Notification::NewRound => vec![5],
+        Notification::YouSee(None) => vec![6, 0],
+        Notification::YouSee(Some(t)) => vec![6, entity_type_to_code(t)],
+    }
+}
+
 
 fn notify(notification: Notification) {
     
@@ -140,7 +152,7 @@ fn execute_command(mut area: Area, bot: Position, command: Command) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, parse_next, i8_into_u8};
+    use super::{Command, parse_next, i8_into_u8, serialize_notification, Notification};
     use space::*;
     use space::Direction::*;
     use entity::*;
@@ -210,5 +222,21 @@ mod tests {
         
         let mut commands = stream_from_slice(&[3, 4]);
         assert_eq!(parse_next(&mut commands), Command::Malformed);
+    }
+    
+    #[test]
+    fn serializing() {
+        assert_eq!(serialize_notification(Notification::YourTurn), vec![1]);
+        assert_eq!(serialize_notification(Notification::YouDied), vec![2]);
+        assert_eq!(serialize_notification(Notification::Success), vec![3]);
+        assert_eq!(serialize_notification(Notification::TooHeavy), vec![4]);
+        assert_eq!(serialize_notification(Notification::NewRound), vec![5]);
+        assert_eq!(serialize_notification(Notification::YouSee(None)), vec![6, 0]);
+        assert_eq!(serialize_notification(Notification::YouSee(Some(EntityType::Bot))),
+                   vec![6, 1]);
+        assert_eq!(serialize_notification(Notification::YouSee(Some(EntityType::Block))),
+                   vec![6, 2]);
+        assert_eq!(serialize_notification(Notification::YouSee(Some(EntityType::Abyss))),
+                   vec![6, 3]);
     }
 }
