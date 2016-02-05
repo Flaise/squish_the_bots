@@ -18,7 +18,7 @@ enum Command {
 #[derive(PartialEq, Debug)]
 enum Notification {
     YourTurn,
-    YouSee(Option<EntityType>),
+    YouSee(Appearance),
     YouDied,
     Success,
     TooHeavy,
@@ -51,11 +51,12 @@ fn code_to_direction(code: u8) -> Option<Direction> {
     }
 }
 
-fn entity_type_to_code(entity_type: EntityType) -> u8 {
-    match entity_type {
-        EntityType::Bot => CodeBot,
-        EntityType::Block => CodeBlock,
-        EntityType::Abyss => CodeAbyss,
+fn appearance_to_code(appearance: Appearance) -> u8 {
+    match appearance {
+        Appearance::Floor => CodeFloor,
+        Appearance::Bot => CodeBot,
+        Appearance::Block => CodeBlock,
+        Appearance::Abyss => CodeAbyss,
     }
 }
 
@@ -129,8 +130,7 @@ fn serialize_notification(notification: Notification) -> Vec<u8> {
         Notification::Success => vec![3],
         Notification::TooHeavy => vec![4],
         Notification::NewRound => vec![5],
-        Notification::YouSee(None) => vec![6, 0],
-        Notification::YouSee(Some(t)) => vec![6, entity_type_to_code(t)],
+        Notification::YouSee(appearance) => vec![6, appearance_to_code(appearance)],
     }
 }
 
@@ -140,14 +140,19 @@ fn notify(notification: Notification) {
 }
 
 
-fn execute_command(mut area: Area, bot: Position, command: Command) {
-    match command {
-        Command::LookAt(offset) => notify(Notification::YouSee(area.type_at(bot + offset))),
-        Command::Move(direction) => area.bot_go(bot, direction),
-        Command::Drill(direction) => area.bot_drill(bot, direction),
-        Command::Malformed | Command::End => area.remove(bot),
-    }
-}
+// fn execute_command(mut area: Area, bot: Entity, command: Command) {
+//     match command {
+//         Command::LookAt(offset) => match area.positions.of(bot) {
+//             None => (),
+//             Some(here) => notify(Notification::YouSee(
+//                 area.appearance_at(here + offset)
+//             ))
+//         },
+//         Command::Move(direction) => area.go(bot, direction),
+//         Command::Drill(direction) => (),//area.bot_drill(bot, direction),
+//         Command::Malformed | Command::End => (),//area.remove(bot),
+//     }
+// }
 
 
 #[cfg(test)]
@@ -232,12 +237,12 @@ mod tests {
         assert_eq!(serialize_notification(Notification::Success), vec![3]);
         assert_eq!(serialize_notification(Notification::TooHeavy), vec![4]);
         assert_eq!(serialize_notification(Notification::NewRound), vec![5]);
-        assert_eq!(serialize_notification(Notification::YouSee(None)), vec![6, 0]);
-        assert_eq!(serialize_notification(Notification::YouSee(Some(EntityType::Bot))),
+        assert_eq!(serialize_notification(Notification::YouSee(Appearance::Floor)), vec![6, 0]);
+        assert_eq!(serialize_notification(Notification::YouSee(Appearance::Bot)),
                    vec![6, 1]);
-        assert_eq!(serialize_notification(Notification::YouSee(Some(EntityType::Block))),
+        assert_eq!(serialize_notification(Notification::YouSee(Appearance::Block)),
                    vec![6, 2]);
-        assert_eq!(serialize_notification(Notification::YouSee(Some(EntityType::Abyss))),
+        assert_eq!(serialize_notification(Notification::YouSee(Appearance::Abyss)),
                    vec![6, 3]);
     }
     

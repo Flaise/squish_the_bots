@@ -1,191 +1,249 @@
 use space::*;
 use space::Direction::*;
 use std::io::{Read, Write};
+use std::collections::HashMap;
 
 
-#[derive(PartialEq, Debug)]
-pub enum EntityType {
-    Bot,
-    Block,
-    Abyss,
+pub struct Components<R>(HashMap<Entity, R>);
+impl<R> Components<R> {
+    fn new() -> Components<R> {
+        Components(HashMap::new())
+    }
+    
+    fn attach(&mut self, entity: Entity, component: R) {
+        self.map_mut().insert(entity, component);
+    }
+    
+    fn attached(&self, entity: Entity) -> bool {
+        self.map().contains_key(&entity)
+    }
+    
+    fn detach(&mut self, entity: Entity) {
+        self.map_mut().remove(&entity);
+    }
+    
+    fn map(&self) -> &HashMap<Entity, R> {
+        let &Components(ref result) = self;
+        result
+    }
+    
+    fn map_mut(&mut self) -> &mut HashMap<Entity, R> {
+        let &mut Components(ref mut result) = self;
+        result
+    }
+    
+    fn of_ref(&self, entity: Entity) -> Option<&R> {
+        self.map().get(&entity)
+    }
+    fn of_mut_ref(&mut self, entity: Entity) -> Option<&mut R> {
+        self.map_mut().get_mut(&entity)
+    }
+}
+
+impl<R: Clone> Components<R> {
+    pub fn of(&self, entity: Entity) -> Option<R> {
+        self.of_ref(entity).map(Clone::clone)
+    }
+}
+
+
+impl Components<Position> {
+    fn at(&self, focus: Position) -> Option<Entity> {
+        for (entity, position) in self.map() {
+            if *position == focus {
+                return Some(entity.clone());
+            }
+        }
+        None
+    }
+    
+    fn occupied(&self, focus: Position) -> bool {
+        self.at(focus) != None
+    }
+    
+    fn set(&mut self, entity: Entity, destination: Position) {
+        match self.of_mut_ref(entity) {
+            None => (), // Shouldn't happen
+            Some(position) => *position = destination,
+        }
+    }
+}
+
+
+// struct Moves;
+impl Area {
+    pub fn go(&mut self, entity: Entity, direction: Direction) {
+        match self.positions.of(entity) {
+            None => (), // Shouldn't happen
+            Some(position) => {
+                let destination = position + direction;
+                match self.push(destination, direction) {
+                    PushResult::Success => self.positions.set(entity, destination),
+                    PushResult::DestroysEnterer => self.remove(entity),
+                    PushResult::TooHeavy => (),
+                }
+            }
+        }
+    }
 }
 
 
 enum PushResult {
     Success,
     TooHeavy,
-    Abyss,
+    DestroysEnterer,
+}
+#[derive(Copy, Clone, PartialEq)]
+enum Pushable {
+    Squishable,
+    Heavy,
+    DestroysEnterer,
+}
+impl Area {
+    fn push_impl(&mut self, target: Position, direction: Direction, chain: u8) -> PushResult {
+        match self.positions.at(target) {
+            None => return PushResult::Success,
+            Some(entity) => {
+                let destination = target + direction;
+                
+                match self.pushables.of(entity) {
+                    None => PushResult::TooHeavy,
+                    Some(Pushable::Squishable) => {
+                        if chain > 1 {
+                            PushResult::TooHeavy
+                        }
+                        else {
+                            match self.push_impl(destination, direction, chain + 1) {
+                                PushResult::Success => self.positions.set(entity, destination),
+                                PushResult::TooHeavy | PushResult::DestroysEnterer => {
+                                    self.remove(entity)
+                                }
+                            }
+                            PushResult::Success
+                        }
+                    },
+                    Some(Pushable::Heavy) => {
+                        if chain > 0 {
+                            PushResult::TooHeavy
+                        }
+                        else {
+                            match self.push_impl(destination, direction, chain + 1) {
+                                PushResult::Success => {
+                                    self.positions.set(entity, destination);
+                                    PushResult::Success
+                                },
+                                PushResult::TooHeavy => PushResult::TooHeavy,
+                                PushResult::DestroysEnterer => {
+                                    self.remove(entity);
+                                    PushResult::Success
+                                }
+                            }
+                        }
+                    },
+                    Some(Pushable::DestroysEnterer) => PushResult::DestroysEnterer,
+                }
+                
+            }
+        }
+    }
+    
+    pub fn push(&mut self, target: Position, direction: Direction) -> PushResult {
+        self.push_impl(target, direction, 0)
+    }
 }
 
 
-enum Entity {
-    Bot {
-        position: Position,
-        ticks_until_action: u8,
-    },
-    Block {
-        position: Position,
-    },
-    Abyss {
-        position: Position,
-    },
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum Appearance {
+    Floor,
+    Bot,
+    Block,
+    Abyss,
+}
+impl Area {
+    pub fn appearance_at(&self, focus: Position) -> Appearance {
+        match self.positions.at(focus) {
+            None => Appearance::Floor,
+            Some(entity) => match self.appearances.of(entity) {
+                None => Appearance::Floor,
+                Some(appearance) => appearance.clone(),
+            }
+        }
+    }
+}
+
+
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+pub struct Entity(u32);
+
+
+struct Entities {
+    next_id: u32,
+}
+impl Entities {
+    fn new() -> Entities {
+        Entities {
+            next_id: 0,
+        }
+    }
+    
+    fn make(&mut self) -> Entity {
+        let result = Entity(self.next_id);
+        self.next_id += 1;
+        result
+    }
+}
+
+
+fn make_bot(area: &mut Area, position: Position) -> Entity {
+    let entity = area.entities.make();
+    area.positions.attach(entity, position);
+    area.appearances.attach(entity, Appearance::Bot);
+    area.pushables.attach(entity, Pushable::Squishable);
+    entity
+}
+fn make_block(area: &mut Area, position: Position) -> Entity {
+    let entity = area.entities.make();
+    area.positions.attach(entity, position);
+    area.appearances.attach(entity, Appearance::Block);
+    area.pushables.attach(entity, Pushable::Heavy);
+    entity
+}
+fn make_abyss(area: &mut Area, position: Position) -> Entity {
+    let entity = area.entities.make();
+    area.positions.attach(entity, position);
+    area.appearances.attach(entity, Appearance::Abyss);
+    area.pushables.attach(entity, Pushable::DestroysEnterer);
+    entity
 }
 
 
 pub struct Area {
-    contents: Vec<Entity>,
-    bounds: Rectangle,
-    ticks_elapsed: u16,
+    pub positions: Components<Position>,
+    appearances: Components<Appearance>,
+    pushables: Components<Pushable>,
+    entities: Entities,
 }
 impl Area {
-    pub fn new(bounds: Rectangle) -> Area {
+    pub fn new() -> Area {
         Area {
-            contents: Vec::new(),
-            bounds: bounds,
-            ticks_elapsed: 0,
+            positions: Components::new(),
+            appearances: Components::new(),
+            pushables: Components::new(),
+            entities: Entities::new(),
         }
     }
     
-    pub fn make(&mut self, position: Position, entType: EntityType) {
-        let entity = match entType {
-            EntityType::Bot => Entity::Bot { position: position, ticks_until_action: 0 },
-            EntityType::Block => Entity::Block { position: position },
-            EntityType::Abyss => Entity::Abyss { position: position },
-        };
-        self.contents.push(entity);
-    }
-    
-    pub fn remove(&mut self, position: Position) {
-        self.contents.retain(|element| {
-            position != match *element {
-                Entity::Bot { position, .. } => position,
-                Entity::Block { position } => position,
-                Entity::Abyss { position } => position,
-            }
-        });
-    }
-    
-    fn shift(&mut self, source: Position, destination: Position) {
-        for element in self.contents.iter_mut() {
-            match *element {
-                Entity::Bot { position, ticks_until_action } if position == source => {
-                    *element = Entity::Bot {
-                        position: destination,
-                        ticks_until_action: ticks_until_action,
-                    };
-                    return;
-                },
-                Entity::Block { position } if position == source => {
-                    *element = Entity::Block { position: destination };
-                    return;
-                },
-                _ => (),
-            }
-        }
-    }
-    
-    fn push(&mut self, focus: Position, direction: Direction) -> PushResult {
-        let destination = focus + direction;
-        
-        match self.type_at(focus) {
-            None => PushResult::Success,
-            Some(EntityType::Abyss) => PushResult::Abyss,
-            Some(EntityType::Bot) => {
-                match self.type_at(destination) {
-                    None => {
-                        self.shift(focus, destination);
-                        PushResult::Success
-                    },
-                    Some(_) => {
-                        self.remove(focus);
-                        PushResult::Success
-                    }
-                }
-            },
-            Some(EntityType::Block) => {
-                match self.type_at(destination) {
-                    None => {
-                        self.shift(focus, destination);
-                        PushResult::Success
-                    },
-                    Some(EntityType::Block) => PushResult::TooHeavy,
-                    Some(EntityType::Abyss) => {
-                        self.remove(focus);
-                        PushResult::Success
-                    },
-                    Some(EntityType::Bot) => {
-                        let destination2 = destination + direction;
-                        match self.type_at(destination2) {
-                            None => {
-                                self.shift(destination, destination2);
-                                self.shift(focus, destination);
-                                PushResult::Success
-                            },
-                            Some(_) => {
-                                self.remove(destination);
-                                self.shift(focus, destination);
-                                PushResult::Success
-                            },
-                        }
-                    },
-                }
-            },
-        }
-    }
-    
-    pub fn bot_go(&mut self, source: Position, direction: Direction) {
-        let destination = source + direction;
-        match self.push(destination, direction) {
-            PushResult::Success => self.shift(source, destination),
-            PushResult::Abyss => self.remove(source),
-            PushResult::TooHeavy => (),
-        }
-    }
-    
-    pub fn bot_drill(&mut self, position: Position, direction: Direction) {
-        
-    }
-    
-    pub fn bot_observe<R: Read+Sized, W: Write+Sized>(&mut self, position: Position,
-                                                      commands: R, notifications: W) {
-        
-    }
-    
-    pub fn type_at(&self, dest: Position) -> Option<EntityType> {
-        if !self.bounds.contains(dest) {
-            return Some(EntityType::Abyss);
-        }
-        for element in &self.contents {
-            match *element {
-                Entity::Bot { position, .. } if dest == position => return Some(EntityType::Bot),
-                Entity::Block { position } if dest == position => return Some(EntityType::Block),
-                Entity::Abyss { position } if dest == position => return Some(EntityType::Abyss),
-                _ => (),
-            }
-        }
-        None
-    }
-    
-    fn occupied(&self, position: Position) -> bool {
-        match self.type_at(position) {
-            Some(_) => true,
-            None => false,
-        }
-    }
-    
-    fn tick(&mut self) {
-        self.ticks_elapsed += 1;
+    pub fn remove(&mut self, entity: Entity) {
+        self.positions.detach(entity);
+        self.appearances.detach(entity);
+        self.pushables.detach(entity);
     }
 }
 
 
 fn test_data() -> (Position, Position, Position, Area) {
-    (
-        Position::new(0, 0),
-        Position::new(2, 0),
-        Position::new(5, 4),
-        Area::new(Rectangle::wh(10 * East + 10 * South)),
-    )
+    (Position::new(0, 0), Position::new(2, 0), Position::new(5, 4), Area::new())
 }
 
 
@@ -193,64 +251,86 @@ fn test_data() -> (Position, Position, Position, Area) {
 fn occupation() {
     let (a, b, c, mut area) = test_data();
     
-    area.make(a, EntityType::Bot);
-    assert!(area.occupied(a));
-    assert_eq!(area.type_at(a), Some(EntityType::Bot));
-    assert!(!area.occupied(b));
-    assert!(!area.occupied(c));
+    make_bot(&mut area, a);
+    assert!(area.positions.occupied(a));
+    assert!(!area.positions.occupied(b));
+    assert!(!area.positions.occupied(c));
     
-    area.make(b, EntityType::Block);
-    assert!(area.occupied(a));
-    assert_eq!(area.type_at(a), Some(EntityType::Bot));
-    assert!(area.occupied(b));
-    assert_eq!(area.type_at(b), Some(EntityType::Block));
-    assert!(!area.occupied(c));
+    make_block(&mut area, b);
+    assert!(area.positions.occupied(a));
+    assert!(area.positions.occupied(b));
+    assert!(!area.positions.occupied(c));
 }
 
 #[test]
-fn abyss_around_arena() {
-    let (_, _, _, area) = test_data();
+fn appearance() {
+    let (a, b, c, mut area) = test_data();
     
-    assert_eq!(area.type_at(Position::new(0, 0)), None);
-    assert_eq!(area.type_at(Position::new(-1, 0)), Some(EntityType::Abyss));
-    assert_eq!(area.type_at(Position::new(0, -1)), Some(EntityType::Abyss));
-    assert_eq!(area.type_at(Position::new(10, 0)), Some(EntityType::Abyss));
-    assert_eq!(area.type_at(Position::new(0, 10)), Some(EntityType::Abyss));
-    assert_eq!(area.type_at(Position::new(10, 10)), Some(EntityType::Abyss));
+    make_bot(&mut area, a);
+    assert_eq!(area.appearance_at(a), Appearance::Bot);
+    assert_eq!(area.appearance_at(b), Appearance::Floor);
+    assert_eq!(area.appearance_at(c), Appearance::Floor);
+    
+    make_block(&mut area, b);
+    assert_eq!(area.appearance_at(a), Appearance::Bot);
+    assert_eq!(area.appearance_at(b), Appearance::Block);
+    assert_eq!(area.appearance_at(c), Appearance::Floor);
 }
+
+// #[test]
+// fn abyss_around_arena() {
+//     let (_, _, _, area) = test_data();
+    
+//     assert_eq!(area.appearance_at(Position::new(0, 0)), Appearance::Floor);
+//     assert_eq!(area.appearance_at(Position::new(-1, 0)), Appearance::Abyss);
+//     assert_eq!(area.appearance_at(Position::new(0, -1)), Appearance::Abyss);
+//     assert_eq!(area.appearance_at(Position::new(10, 0)), Appearance::Abyss);
+//     assert_eq!(area.appearance_at(Position::new(0, 10)), Appearance::Abyss);
+//     assert_eq!(area.appearance_at(Position::new(10, 10)), Appearance::Abyss);
+// }
 
 #[test]
 fn travelment() {
     for dir in vec![North, East, South, West] {
         let (_, _, c, mut area) = test_data();
         
-        area.make(c, EntityType::Bot);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
+        let bot = make_bot(&mut area, c);
+        area.go(bot, dir);
+        assert_eq!(area.appearance_at(c), Appearance::Floor);
+        assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+        assert_eq!(area.positions.of(bot), Some(c + dir));
     }
 }
 
 #[test]
 fn pushing() {
     for dir in vec![North, East, South, West] {
-        let (_, _, c, mut area) = test_data();
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Block);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+        {
+            let (_, _, c, mut area) = test_data();
+            let bot = make_bot(&mut area, c);
+            let block = make_block(&mut area, c + dir);
+            area.go(bot, dir);
+            assert_eq!(area.appearance_at(c), Appearance::Floor);
+            assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+            assert_eq!(area.appearance_at(c + dir * 2), Appearance::Block);
+            assert_eq!(area.positions.of(bot), Some(c + dir));
+            assert_eq!(area.positions.of(block), Some(c + dir * 2));
+        }
         
-        let (_, _, c, mut area) = test_data();
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Block);
-        area.make(c + dir * 2, EntityType::Bot);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir * 2), Some(EntityType::Block));
-        assert_eq!(area.type_at(c + dir * 3), Some(EntityType::Bot));
+        {
+            let (_, _, c, mut area) = test_data();
+            let bot1 = make_bot(&mut area, c);
+            let block = make_block(&mut area, c + dir);
+            let bot2 = make_bot(&mut area, c + dir * 2);
+            area.go(bot1, dir);
+            assert_eq!(area.appearance_at(c), Appearance::Floor);
+            assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+            assert_eq!(area.appearance_at(c + dir * 2), Appearance::Block);
+            assert_eq!(area.appearance_at(c + dir * 3), Appearance::Bot);
+            assert_eq!(area.positions.of(bot1), Some(c + dir));
+            assert_eq!(area.positions.of(block), Some(c + dir * 2));
+            assert_eq!(area.positions.of(bot2), Some(c + dir * 3));
+        }
     }
 }
 
@@ -259,13 +339,16 @@ fn pushing_too_heavy() {
     for dir in vec![North, East, South, West] {
         let (_, _, c, mut area) = test_data();
         
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Block);
-        area.make(c + dir + dir, EntityType::Block);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Block));
-        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+        let bot = make_bot(&mut area, c);
+        let block1 = make_block(&mut area, c + dir);
+        let block2 = make_block(&mut area, c + dir + dir);
+        area.go(bot, dir);
+        assert_eq!(area.appearance_at(c), Appearance::Bot);
+        assert_eq!(area.appearance_at(c + dir), Appearance::Block);
+        assert_eq!(area.appearance_at(c + dir + dir), Appearance::Block);
+        assert_eq!(area.positions.of(bot), Some(c));
+        assert_eq!(area.positions.of(block1), Some(c + dir));
+        assert_eq!(area.positions.of(block2), Some(c + dir * 2));
     }
 }
 
@@ -273,22 +356,11 @@ fn pushing_too_heavy() {
 fn skydiving() {
     for dir in vec![North, East, South, West] {
         let (_, _, c, mut area) = test_data();
-        
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Abyss);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Abyss));
-    }
-    
-    for dir in vec![North, East, South, West] {
-        let mut area = Area::new(Rectangle::corners(Position::zero(), Position::zero()));
-        assert_eq!(area.type_at(Position::zero()), None);
-        
-        area.make(Position::zero(), EntityType::Bot);
-        area.bot_go(Position::zero(), dir);
-        assert_eq!(area.type_at(Position::zero()), None);
-        assert_eq!(area.type_at(Position::zero() + dir), Some(EntityType::Abyss));
+        let bot = make_bot(&mut area, c);
+        make_abyss(&mut area, c + dir);
+        area.go(bot, dir);
+        assert_eq!(area.appearance_at(c), Appearance::Floor);
+        assert_eq!(area.appearance_at(c + dir), Appearance::Abyss);
     }
 }
 
@@ -296,44 +368,44 @@ fn skydiving() {
 fn shove_into_abyss() {
     for dir in vec![North, East, South, West] {
         let (_, _, c, mut area) = test_data();
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Bot);
-        area.make(c + dir + dir, EntityType::Abyss);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Abyss));
+        let bot = make_bot(&mut area, c);
+        make_bot(&mut area, c + dir);
+        make_abyss(&mut area, c + dir + dir);
+        area.go(bot, dir);
+        assert_eq!(area.appearance_at(c), Appearance::Floor);
+        assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+        assert_eq!(area.appearance_at(c + dir + dir), Appearance::Abyss);
         
         let (_, _, c, mut area) = test_data();
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Block);
-        area.make(c + dir + dir, EntityType::Abyss);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Abyss));
+        let bot = make_bot(&mut area, c);
+        make_block(&mut area, c + dir);
+        make_abyss(&mut area, c + dir + dir);
+        area.go(bot, dir);
+        assert_eq!(area.appearance_at(c), Appearance::Floor);
+        assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+        assert_eq!(area.appearance_at(c + dir + dir), Appearance::Abyss);
         
         let (_, _, c, mut area) = test_data();
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Block);
-        area.make(c + dir * 2, EntityType::Bot);
-        area.make(c + dir * 3, EntityType::Abyss);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir * 2), Some(EntityType::Block));
-        assert_eq!(area.type_at(c + dir * 3), Some(EntityType::Abyss));
+        let bot = make_bot(&mut area, c);
+        make_block(&mut area, c + dir);
+        make_bot(&mut area, c + dir * 2);
+        make_abyss(&mut area, c + dir * 3);
+        area.go(bot, dir);
+        assert_eq!(area.appearance_at(c), Appearance::Floor);
+        assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+        assert_eq!(area.appearance_at(c + dir * 2), Appearance::Block);
+        assert_eq!(area.appearance_at(c + dir * 3), Appearance::Abyss);
         
         let (_, _, c, mut area) = test_data();
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Bot);
-        area.make(c + dir * 2, EntityType::Bot);
-        area.make(c + dir * 3, EntityType::Abyss);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir * 2), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir * 3), Some(EntityType::Abyss));
+        let bot = make_bot(&mut area, c);
+        make_bot(&mut area, c + dir);
+        make_bot(&mut area, c + dir * 2);
+        make_abyss(&mut area, c + dir * 3);
+        area.go(bot, dir);
+        assert_eq!(area.appearance_at(c), Appearance::Floor);
+        assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+        assert_eq!(area.appearance_at(c + dir * 2), Appearance::Bot);
+        assert_eq!(area.appearance_at(c + dir * 3), Appearance::Abyss);
     }
 }
 
@@ -341,52 +413,54 @@ fn shove_into_abyss() {
 fn squish_directly() {
     for dir in vec![North, East, South, West] {
         let (_, _, c, mut area) = test_data();
-        
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Bot);
-        area.make(c + dir + dir, EntityType::Block);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
+        let bot1 = make_bot(&mut area, c);
+        let bot2 = make_bot(&mut area, c + dir);
+        let block = make_block(&mut area, c + dir + dir);
+        area.go(bot1, dir);
+        assert_eq!(area.appearance_at(c), Appearance::Floor);
+        assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+        assert_eq!(area.appearance_at(c + dir + dir), Appearance::Block);
+        assert_eq!(area.positions.of(bot1), Some(c + dir));
+        assert_eq!(area.positions.of(block), Some(c + dir * 2));
+        assert_eq!(area.positions.of(bot2), None);
     }
 }
 
 #[test]
 fn squish_indirectly() {
     for dir in vec![North, East, South, West] {
-        let (_, _, c, mut area) = test_data();
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Block);
-        area.make(c + dir + dir, EntityType::Bot);
-        area.make(c + dir + dir + dir, EntityType::Block);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
-        assert_eq!(area.type_at(c + dir + dir + dir), Some(EntityType::Block));
+        {
+            let (_, _, c, mut area) = test_data();
+            let bot1 = make_bot(&mut area, c);
+            let block1 = make_block(&mut area, c + dir);
+            let bot2 = make_bot(&mut area, c + dir + dir);
+            let block2 = make_block(&mut area, c + dir + dir + dir);
+            area.go(bot1, dir);
+            assert_eq!(area.appearance_at(c), Appearance::Floor);
+            assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+            assert_eq!(area.appearance_at(c + dir + dir), Appearance::Block);
+            assert_eq!(area.appearance_at(c + dir + dir + dir), Appearance::Block);
+            assert_eq!(area.positions.of(bot1), Some(c + dir));
+            assert_eq!(area.positions.of(block1), Some(c + dir * 2));
+            assert_eq!(area.positions.of(bot2), None);
+            assert_eq!(area.positions.of(block2), Some(c + dir * 3));
+        }
         
-        let (_, _, c, mut area) = test_data();
-        area.make(c, EntityType::Bot);
-        area.make(c + dir, EntityType::Block);
-        area.make(c + dir + dir, EntityType::Bot);
-        area.make(c + dir + dir + dir, EntityType::Bot);
-        area.bot_go(c, dir);
-        assert_eq!(area.type_at(c), None);
-        assert_eq!(area.type_at(c + dir), Some(EntityType::Bot));
-        assert_eq!(area.type_at(c + dir + dir), Some(EntityType::Block));
-        assert_eq!(area.type_at(c + dir + dir + dir), Some(EntityType::Bot));
+        {
+            let (_, _, c, mut area) = test_data();
+            let bot1 = make_bot(&mut area, c);
+            let block = make_block(&mut area, c + dir);
+            let bot2 = make_bot(&mut area, c + dir + dir);
+            let bot3 = make_bot(&mut area, c + dir + dir + dir);
+            area.go(bot1, dir);
+            assert_eq!(area.appearance_at(c), Appearance::Floor);
+            assert_eq!(area.appearance_at(c + dir), Appearance::Bot);
+            assert_eq!(area.appearance_at(c + dir + dir), Appearance::Block);
+            assert_eq!(area.appearance_at(c + dir + dir + dir), Appearance::Bot);
+            assert_eq!(area.positions.of(bot1), Some(c + dir));
+            assert_eq!(area.positions.of(block), Some(c + dir * 2));
+            assert_eq!(area.positions.of(bot2), None);
+            assert_eq!(area.positions.of(bot3), Some(c + dir * 3));
+        }
     }
-}
-
-#[test]
-fn elapsation() {
-    let (_, _, c, mut area) = test_data();
-    assert_eq!(area.ticks_elapsed, 0);
-    
-    area.tick();
-    assert_eq!(area.ticks_elapsed, 1);
-    
-    area.tick();
-    assert_eq!(area.ticks_elapsed, 2);
 }

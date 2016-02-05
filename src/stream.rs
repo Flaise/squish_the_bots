@@ -19,7 +19,7 @@ struct Server {
         let listener = try!(TcpListener::bind(addr));
         Ok(Server {
             tcp_listener: listener,
-            area: Area::new(Rectangle::wh(North * 10 + East * 10)),
+            area: Area::new(),
         })
     }
 // }
