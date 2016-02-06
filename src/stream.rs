@@ -11,7 +11,7 @@ use space::Direction::*;
 
 struct Server {
     tcp_listener: TcpListener,
-    area: Area,
+    // area: Area,
 }
 // impl Server {
     
@@ -19,7 +19,7 @@ struct Server {
         let listener = try!(TcpListener::bind(addr));
         Ok(Server {
             tcp_listener: listener,
-            area: Area::new(),
+            // area: Area::new(),
         })
     }
 // }

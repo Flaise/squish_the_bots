@@ -1,6 +1,10 @@
-mod space;
+// mod action;
+mod appearance;
+mod area;
 mod entity;
-mod action;
+mod positioned;
+mod pushable;
+mod space;
 mod stream;
 
 

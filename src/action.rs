@@ -1,8 +1,10 @@
-use space::*;
-use space::Direction::*;
-use entity::*;
 use std::io::Read;
 use std::mem::transmute;
+use space::*;
+use space::Direction::*;
+use area::Area;
+// use appearance::*;
+use appearance::Appearance;
 
 
 #[derive(PartialEq, Debug)]
