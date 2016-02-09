@@ -15,7 +15,7 @@ impl Area {
             None => Appearance::Floor,
             Some(entity) => match self.appearances.of(entity) {
                 None => Appearance::Floor,
-                Some(appearance) => appearance.clone(),
+                Some(appearance) => appearance,
             }
         }
     }

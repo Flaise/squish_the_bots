@@ -2,12 +2,12 @@ use appearance::*;
 use space::*;
 use space::Direction::*;
 use entity::*;
-// use entity::Entities;
 use pushable::*;
-// use pushable::Pushable;
+use action::*;
+use std::io::Read;
 
 
-fn make_bot(area: &mut Area, position: Position) -> Entity {
+pub fn make_bot(area: &mut Area, position: Position) -> Entity {
     let entity = area.entities.make();
     area.positions.attach(entity, position);
     area.appearances.attach(entity, Appearance::Bot);
@@ -34,6 +34,7 @@ pub struct Area {
     pub positions: Components<Position>,
     pub appearances: Components<Appearance>,
     pub pushables: Components<Pushable>,
+    pub inputs: Components<Box<Read>>,
     pub entities: Entities,
 }
 impl Area {
@@ -42,6 +43,7 @@ impl Area {
             positions: Components::new(),
             appearances: Components::new(),
             pushables: Components::new(),
+            inputs: Components::new(),
             entities: Entities::new(),
         }
     }
@@ -50,6 +52,7 @@ impl Area {
         self.positions.detach(entity);
         self.appearances.detach(entity);
         self.pushables.detach(entity);
+        self.inputs.detach(entity);
     }
 }
 

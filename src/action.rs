@@ -2,9 +2,9 @@ use std::io::Read;
 use std::mem::transmute;
 use space::*;
 use space::Direction::*;
-use area::Area;
-// use appearance::*;
-use appearance::Appearance;
+use area::*;
+use appearance::*;
+use entity::*;
 
 
 #[derive(PartialEq, Debug)]
@@ -74,23 +74,20 @@ fn i8_from_u8(x: u8) -> i8 {
 fn parse_next(bytes: &mut Read) -> Command {
     let mut buf = [0];
     
-    match bytes.read(&mut buf) {
-        Ok(1) => (),
-        _ => return Command::End,
+    if bytes.read(&mut buf).ok() != Some(1) {
+        return Command::End;
     }
     
     match buf[0] {
         CodeLookAt => {
-            match bytes.read(&mut buf) {
-                Ok(1) => (),
-                _ => return Command::End,
+            if bytes.read(&mut buf).ok() != Some(1) {
+                return Command::End;
             }
             
             let dx = i8_from_u8(buf[0]) as i32;
             
-            match bytes.read(&mut buf) {
-                Ok(1) => (),
-                _ => return Command::End,
+            if bytes.read(&mut buf).ok() != Some(1) {
+                return Command::End;
             }
             
             let dy = i8_from_u8(buf[0]) as i32;
@@ -100,9 +97,8 @@ fn parse_next(bytes: &mut Read) -> Command {
             return Command::LookAt(East * dx + North * dy);
         },
         CodeMove => {
-            match bytes.read(&mut buf) {
-                Ok(1) => (),
-                _ => return Command::End,
+            if bytes.read(&mut buf).ok() != Some(1) {
+                return Command::End;
             }
             
             return match code_to_direction(buf[0]) {
@@ -111,9 +107,8 @@ fn parse_next(bytes: &mut Read) -> Command {
             };
         },
         CodeDrill => {
-            match bytes.read(&mut buf) {
-                Ok(1) => (),
-                _ => return Command::End,
+            if bytes.read(&mut buf).ok() != Some(1) {
+                return Command::End;
             }
             
             return match code_to_direction(buf[0]) {
@@ -137,24 +132,32 @@ fn serialize_notification(notification: Notification) -> Vec<u8> {
 }
 
 
-fn notify(notification: Notification) {
-    
+impl Area {
+    fn act(&mut self, bot: Entity) {
+        let command = {
+            let input = match self.inputs.of_mut_ref(bot) {
+                None => return, // shouldn't happen
+                Some(a) => a,
+            };
+            parse_next(&mut *input)
+        };
+        
+        match command {
+            Command::LookAt(offset) => match self.positions.of(bot) {
+                None => (),
+                Some(here) => (),
+                
+                // notify(Notification::YouSee(
+                //     self.appearance_at(here + offset)
+                // ))
+            },
+            Command::Move(direction) => self.go(bot, direction),
+            Command::Drill(direction) => (),//self.bot_drill(bot, direction),
+            Command::Malformed | Command::End => self.remove(bot),
+        }
+    }
 }
 
-
-// fn execute_command(mut area: Area, bot: Entity, command: Command) {
-//     match command {
-//         Command::LookAt(offset) => match area.positions.of(bot) {
-//             None => (),
-//             Some(here) => notify(Notification::YouSee(
-//                 area.appearance_at(here + offset)
-//             ))
-//         },
-//         Command::Move(direction) => area.go(bot, direction),
-//         Command::Drill(direction) => (),//area.bot_drill(bot, direction),
-//         Command::Malformed | Command::End => (),//area.remove(bot),
-//     }
-// }
 
 
 #[cfg(test)]
@@ -165,6 +168,8 @@ mod tests {
     use entity::*;
     use std::io::Write;
     use std::rc::Rc;
+    use area::*;
+    use appearance::*;
     
     extern crate memstream;
     use self::memstream::*;
@@ -246,6 +251,17 @@ mod tests {
                    vec![6, 2]);
         assert_eq!(serialize_notification(Notification::YouSee(Appearance::Abyss)),
                    vec![6, 3]);
+    }
+    
+    #[test]
+    fn action() {
+        let mut area = Area::new();
+        let bot = make_bot(&mut area, Position::zero());
+        let mut commands = stream_from_slice(&[]);
+        area.inputs.attach(bot, Box::new(commands));
+        area.act(bot);
+        
+        assert_eq!(area.positions.of(bot), None);
     }
     
     // #[test]
