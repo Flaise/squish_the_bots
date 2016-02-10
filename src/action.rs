@@ -5,6 +5,7 @@ use space::Direction::*;
 use area::*;
 use appearance::*;
 use entity::*;
+use pushable::*;
 
 
 #[derive(PartialEq, Debug)]
@@ -18,7 +19,7 @@ enum Command {
 
 
 #[derive(PartialEq, Debug)]
-enum Notification {
+pub enum Notification {
     YourTurn,
     YouSee(Appearance),
     YouDied,
@@ -74,6 +75,7 @@ fn i8_from_u8(x: u8) -> i8 {
 fn parse_next(bytes: &mut Read) -> Command {
     let mut buf = [0];
     
+    // TODO: read_exact
     if bytes.read(&mut buf).ok() != Some(1) {
         return Command::End;
     }
@@ -93,7 +95,7 @@ fn parse_next(bytes: &mut Read) -> Command {
             let dy = i8_from_u8(buf[0]) as i32;
             
             ///////////// Positive Y is north, positive X is east
-             
+            
             return Command::LookAt(East * dx + North * dy);
         },
         CodeMove => {
@@ -133,22 +135,47 @@ fn serialize_notification(notification: Notification) -> Vec<u8> {
 
 
 impl Area {
+    pub fn notify(&mut self, bot: Entity, notification: Notification) {
+        let error = {
+            let output = match self.outputs.of_mut_ref(bot) {
+                None => return,
+                Some(output) => output,
+            };
+            match output.write_all(serialize_notification(notification).as_ref()) {
+                Ok(_) => return,
+                Err(error) => error,
+            }
+        };
+        println!("WARNING: {:?}", error);
+        self.remove(bot);
+    }
+    
     fn act(&mut self, bot: Entity) {
+        self.notify(bot, Notification::YourTurn);
+        
         let command = match self.inputs.of_mut_ref(bot) {
             None => return, // shouldn't happen
             Some(mut input) => parse_next(&mut input),
         };
         
         match command {
-            Command::LookAt(offset) => match self.positions.of(bot) {
-                None => (), // shouldn't happen
-                Some(here) => (),
-                
-                // notify(Notification::YouSee(
-                //     self.appearance_at(here + offset)
-                // ))
+            Command::LookAt(offset) => {
+                let here = match self.positions.of(bot) {
+                    None => return, // shouldn't happen
+                    Some(here) => here,
+                };
+                let notification = Notification::YouSee(self.appearance_at(here + offset));
+                self.notify(bot, notification);
             },
-            Command::Move(direction) => self.go(bot, direction),
+            Command::Move(direction) => {
+                let push_result = self.go(bot, direction);
+                match push_result {
+                    None => (),
+                    Some(PushResult::Success) => self.notify(bot, Notification::Success),
+                    Some(PushResult::TooHeavy) => self.notify(bot, Notification::TooHeavy),
+                    Some(PushResult::DestroysEnterer) => (),
+                };
+            },
             Command::Drill(direction) => (),//self.bot_drill(bot, direction),
             Command::Malformed | Command::End => self.remove(bot),
         }
@@ -188,74 +215,67 @@ mod tests {
     use space::*;
     use space::Direction::*;
     use entity::*;
-    use std::io::Write;
-    use std::rc::Rc;
+    use std::io;
+    use std::io::{Write, Cursor};
+    use std::rc::{Rc, Weak};
+    use std::cell::RefCell;
     use area::*;
     use appearance::*;
-    
-    extern crate memstream;
-    use self::memstream::*;
-    
-    
-    fn stream_from_slice(slice: &[u8]) -> MemStream {
-        let mut result = MemStream::new();
-        result.write(slice).unwrap();
-        result
-    }
+    use std::borrow::Borrow;
     
     #[test]
     fn parsing() {
-        let mut commands = stream_from_slice(&[]);
+        let mut commands = Cursor::new([]);
         assert_eq!(parse_next(&mut commands), Command::End);
         
-        let mut commands = stream_from_slice(&[
+        let mut commands = Cursor::new([
             1, i8_into_u8(0i8), i8_into_u8(0i8)
         ]);
         assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::zero()));
         
-        let mut commands = stream_from_slice(&[
+        let mut commands = Cursor::new([
             1, i8_into_u8(1i8), i8_into_u8(0i8)
         ]);
         assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::zero() + East));
         
-        let mut commands = stream_from_slice(&[
+        let mut commands = Cursor::new([
             1, i8_into_u8(-1i8), i8_into_u8(1i8)
         ]);
         assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::zero() + West + North));
         
-        let mut commands = stream_from_slice(&[
+        let mut commands = Cursor::new([
             1, i8_into_u8(-2i8), i8_into_u8(1i8)
         ]);
         assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::zero() + West * 2 + North));
         
-        let mut commands = stream_from_slice(&[2, 0]);
+        let mut commands = Cursor::new([2, 0]);
         assert_eq!(parse_next(&mut commands), Command::Move(North));
         
-        let mut commands = stream_from_slice(&[2, 1]);
+        let mut commands = Cursor::new([2, 1]);
         assert_eq!(parse_next(&mut commands), Command::Move(East));
         
-        let mut commands = stream_from_slice(&[2, 2]);
+        let mut commands = Cursor::new([2, 2]);
         assert_eq!(parse_next(&mut commands), Command::Move(South));
         
-        let mut commands = stream_from_slice(&[2, 3]);
+        let mut commands = Cursor::new([2, 3]);
         assert_eq!(parse_next(&mut commands), Command::Move(West));
         
-        let mut commands = stream_from_slice(&[2, 4]);
+        let mut commands = Cursor::new([2, 4]);
         assert_eq!(parse_next(&mut commands), Command::Malformed);
         
-        let mut commands = stream_from_slice(&[3, 0]);
+        let mut commands = Cursor::new([3, 0]);
         assert_eq!(parse_next(&mut commands), Command::Drill(North));
         
-        let mut commands = stream_from_slice(&[3, 1]);
+        let mut commands = Cursor::new([3, 1]);
         assert_eq!(parse_next(&mut commands), Command::Drill(East));
         
-        let mut commands = stream_from_slice(&[3, 2]);
+        let mut commands = Cursor::new([3, 2]);
         assert_eq!(parse_next(&mut commands), Command::Drill(South));
         
-        let mut commands = stream_from_slice(&[3, 3]);
+        let mut commands = Cursor::new([3, 3]);
         assert_eq!(parse_next(&mut commands), Command::Drill(West));
         
-        let mut commands = stream_from_slice(&[3, 4]);
+        let mut commands = Cursor::new([3, 4]);
         assert_eq!(parse_next(&mut commands), Command::Malformed);
     }
     
@@ -272,7 +292,7 @@ mod tests {
         assert_eq!(serialize_notification(Notification::YouSee(Appearance::Block)),
                    vec![6, 2]);
         assert_eq!(serialize_notification(Notification::YouSee(Appearance::Abyss)),
-                   vec![6, 3]);
+                   *vec![6, 3]);
     }
     
     #[test]
@@ -287,10 +307,10 @@ mod tests {
             vec![1, 0],
             vec![0],
         ];
-        for command_stream in streams {
+        for data in streams {
             let mut area = Area::new();
             let bot = make_bot(&mut area, Position::zero());
-            area.inputs.attach(bot, Box::new(stream_from_slice(&command_stream)));
+            area.inputs.attach(bot, Box::new(Cursor::new(data)));
             area.act(bot);
             
             assert_eq!(area.positions.of(bot), None);
@@ -304,8 +324,8 @@ mod tests {
         let botB = make_bot(&mut area, Position::zero() + East);
         let block = make_block(&mut area, Position::zero() + East * 2);
         
-        area.inputs.attach(botA, Box::new(stream_from_slice(&[2, 1])));
-        area.inputs.attach(botB, Box::new(stream_from_slice(&[])));
+        area.inputs.attach(botA, Box::new(Cursor::new([2, 1])));
+        area.inputs.attach(botB, Box::new(Cursor::new([])));
         
         let entities = area.all_actors();
         assert_eq!(entities, &[botA, botB]);
@@ -318,25 +338,53 @@ mod tests {
         assert_eq!(area.positions.of(botB), None);
         assert_eq!(area.positions.of(block), Some(Position::zero() + East * 2));
         
-        
-        // let winners = area.act_all();
-        
-        // assert_eq!(winners, &[botA]);
+        // TODO: test act_all()
     }
     
-    // #[test]
-    // fn notification_death() {
-    //     let a = Position::zero();
-    //
-    //     let mut commands = Rc::new(MemStream::new());
-    //     let mut notifications = Rc::new(MemStream::new());
-    //
-    //     let mut area = Area::new(Rectangle::wh(North * 10 + East * 10));
-    //     area.make(a, EntityType::Bot);
-    //     area.bot_observe(a, commands.clone(), notifications.clone());
-    //
-    //     // assert_eq!(notifications.unwrap(), vec![]);
-    //     area.bot_go(a, West);
-    //     // assert_eq!(notifications.unwrap(), vec![2]);
-    // }
+    #[test]
+    fn notification_death() {
+        let mut area = Area::new();
+        let bot = make_bot(&mut area, Position::zero());
+        make_abyss(&mut area, Position::zero() + North);
+        
+        area.inputs.attach(bot, Box::new(Cursor::new([2, 0])));
+        
+        let output = Rc::new(RefCell::new(Vec::<u8>::new()));
+        let shared = SharedWrite { writer: output.clone() };
+        
+        area.outputs.attach(bot, Box::new(shared));
+        
+        area.act(bot);
+        
+        assert_eq!(Rc::try_unwrap(output).unwrap().into_inner(), vec![1, 2]);
+    }
+    
+    #[test]
+    fn notification_success() {
+        let output = Rc::new(RefCell::new(Vec::<u8>::new()));
+        {
+            let mut area = Area::new();
+            let bot = make_bot(&mut area, Position::zero());
+            area.inputs.attach(bot, Box::new(Cursor::new([2, 0])));
+            
+            let shared = SharedWrite { writer: output.clone() };
+            area.outputs.attach(bot, Box::new(shared));
+            
+            area.act(bot);
+        }
+        
+        assert_eq!(Rc::try_unwrap(output).unwrap().into_inner(), vec![1, 3]);
+    }
+    
+    struct SharedWrite {
+        writer: Rc<RefCell<Write>>,
+    }
+    impl Write for SharedWrite {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.writer.borrow_mut().write(buf)
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            self.writer.borrow_mut().flush()
+        }
+    }
 }

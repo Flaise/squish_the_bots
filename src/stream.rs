@@ -68,6 +68,7 @@ fn run_one(tcp_listener: TcpListener) -> io::Result<thread::JoinHandle<()>> {
 // }
 
 #[test]
+#[ignore]
 fn connection() {
     let tcp_listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = tcp_listener.local_addr().unwrap();
@@ -78,8 +79,8 @@ fn connection() {
     let mut stream = TcpStream::connect(addr).unwrap();
     
     let mut buf = [0, 0];
-    // assert_eq!(stream.read(&mut buf).ok(), Some(1));
-    // assert_eq!(&buf[0..0], &[1]);
+    assert_eq!(stream.read(&mut buf).ok(), Some(1));
+    assert_eq!(&buf[0..0], &[1]);
     
     handle.join().unwrap();
 }

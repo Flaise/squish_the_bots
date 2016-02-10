@@ -4,7 +4,7 @@ use space::Direction::*;
 use entity::*;
 use pushable::*;
 use action::*;
-use std::io::Read;
+use std::io::{Read, Write};
 
 
 pub fn make_bot(area: &mut Area, position: Position) -> Entity {
@@ -21,7 +21,7 @@ pub fn make_block(area: &mut Area, position: Position) -> Entity {
     area.pushables.attach(entity, Pushable::Heavy);
     entity
 }
-fn make_abyss(area: &mut Area, position: Position) -> Entity {
+pub fn make_abyss(area: &mut Area, position: Position) -> Entity {
     let entity = area.entities.make();
     area.positions.attach(entity, position);
     area.appearances.attach(entity, Appearance::Abyss);
@@ -35,6 +35,7 @@ pub struct Area {
     pub appearances: Components<Appearance>,
     pub pushables: Components<Pushable>,
     pub inputs: Components<Box<Read>>,
+    pub outputs: Components<Box<Write>>,
     pub entities: Entities,
 }
 impl Area {
@@ -44,15 +45,19 @@ impl Area {
             appearances: Components::new(),
             pushables: Components::new(),
             inputs: Components::new(),
+            outputs: Components::new(),
             entities: Entities::new(),
         }
     }
     
     pub fn remove(&mut self, entity: Entity) {
+        self.notify(entity, Notification::YouDied);
+        
         self.positions.detach(entity);
         self.appearances.detach(entity);
         self.pushables.detach(entity);
         self.inputs.detach(entity);
+        self.outputs.detach(entity);
     }
 }
 

@@ -3,7 +3,7 @@ use area::*;
 use entity::*;
 
 
-enum PushResult {
+pub enum PushResult {
     Success,
     TooHeavy,
     DestroysEnterer,
@@ -69,16 +69,18 @@ impl Area {
 
 
 impl Area {
-    pub fn go(&mut self, entity: Entity, direction: Direction) {
+    pub fn go(&mut self, entity: Entity, direction: Direction) -> Option<PushResult> {
         match self.positions.of(entity) {
-            None => (), // Shouldn't happen
+            None => None,
             Some(position) => {
                 let destination = position + direction;
-                match self.push(destination, direction) {
+                let push_result = self.push(destination, direction);
+                match push_result {
                     PushResult::Success => self.positions.set(entity, destination),
                     PushResult::DestroysEnterer => self.remove(entity),
                     PushResult::TooHeavy => (),
-                }
+                };
+                Some(push_result)
             }
         }
     }
