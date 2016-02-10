@@ -4,9 +4,9 @@ use entity::*;
 
 impl Components<Position> {
     pub fn at(&self, focus: Position) -> Option<Entity> {
-        for (entity, position) in self.map() {
+        for (entity, position) in &self.contents {
             if *position == focus {
-                return Some(entity.clone());
+                return Some(*entity);
             }
         }
         None
@@ -23,5 +23,3 @@ impl Components<Position> {
         }
     }
 }
-
-

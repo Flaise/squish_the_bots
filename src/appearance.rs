@@ -11,12 +11,11 @@ pub enum Appearance {
 }
 impl Area {
     pub fn appearance_at(&self, focus: Position) -> Appearance {
+        // uses area.positions, area.appearances
+        
         match self.positions.at(focus) {
             None => Appearance::Floor,
-            Some(entity) => match self.appearances.of(entity) {
-                None => Appearance::Floor,
-                Some(appearance) => appearance,
-            }
+            Some(entity) => self.appearances.of(entity).unwrap_or(Appearance::Floor),
         }
     }
 }

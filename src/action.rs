@@ -134,17 +134,14 @@ fn serialize_notification(notification: Notification) -> Vec<u8> {
 
 impl Area {
     fn act(&mut self, bot: Entity) {
-        let command = {
-            let input = match self.inputs.of_mut_ref(bot) {
-                None => return, // shouldn't happen
-                Some(a) => a,
-            };
-            parse_next(&mut *input)
+        let command = match self.inputs.of_mut_ref(bot) {
+            None => return, // shouldn't happen
+            Some(mut input) => parse_next(&mut input),
         };
         
         match command {
             Command::LookAt(offset) => match self.positions.of(bot) {
-                None => (),
+                None => (), // shouldn't happen
                 Some(here) => (),
                 
                 // notify(Notification::YouSee(
@@ -156,8 +153,33 @@ impl Area {
             Command::Malformed | Command::End => self.remove(bot),
         }
     }
+    
+    fn all_actors(&self) -> Vec<Entity> {
+        let mut result = Vec::with_capacity(self.inputs.contents.len());
+        for (entity, input) in &self.inputs.contents {
+            result.push(*entity);
+        }
+        result.sort();
+        result
+    }
+    
+    fn act_vec(&mut self, entities: Vec<Entity>) {
+        for entity in entities {
+            self.act(entity);
+        }
+    }
+    
+    // Returns the winners of the round
+    fn act_all(&mut self) -> Vec<Entity> {
+        loop {
+            let entities = self.all_actors();
+            if entities.len() <= 1 {
+                return entities;
+            }
+            self.act_vec(entities);
+        }
+    }
 }
-
 
 
 #[cfg(test)]
@@ -174,7 +196,7 @@ mod tests {
     extern crate memstream;
     use self::memstream::*;
     
-                        
+    
     fn stream_from_slice(slice: &[u8]) -> MemStream {
         let mut result = MemStream::new();
         result.write(slice).unwrap();
@@ -254,14 +276,52 @@ mod tests {
     }
     
     #[test]
-    fn action() {
+    fn disappear() {
+        let streams = vec![
+            vec![],
+            vec![88],
+            vec![4],
+            vec![3],
+            vec![2],
+            vec![1],
+            vec![1, 0],
+            vec![0],
+        ];
+        for command_stream in streams {
+            let mut area = Area::new();
+            let bot = make_bot(&mut area, Position::zero());
+            area.inputs.attach(bot, Box::new(stream_from_slice(&command_stream)));
+            area.act(bot);
+            
+            assert_eq!(area.positions.of(bot), None);
+        }
+    }
+    
+    #[test]
+    fn win() {
         let mut area = Area::new();
-        let bot = make_bot(&mut area, Position::zero());
-        let mut commands = stream_from_slice(&[]);
-        area.inputs.attach(bot, Box::new(commands));
-        area.act(bot);
+        let botA = make_bot(&mut area, Position::zero());
+        let botB = make_bot(&mut area, Position::zero() + East);
+        let block = make_block(&mut area, Position::zero() + East * 2);
         
-        assert_eq!(area.positions.of(bot), None);
+        area.inputs.attach(botA, Box::new(stream_from_slice(&[2, 1])));
+        area.inputs.attach(botB, Box::new(stream_from_slice(&[])));
+        
+        let entities = area.all_actors();
+        assert_eq!(entities, &[botA, botB]);
+        area.act_vec(entities);
+        
+        let entities = area.all_actors();
+        assert_eq!(entities, &[botA]);
+        
+        assert_eq!(area.positions.of(botA), Some(Position::zero() + East));
+        assert_eq!(area.positions.of(botB), None);
+        assert_eq!(area.positions.of(block), Some(Position::zero() + East * 2));
+        
+        
+        // let winners = area.act_all();
+        
+        // assert_eq!(winners, &[botA]);
     }
     
     // #[test]

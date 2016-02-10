@@ -14,7 +14,7 @@ pub fn make_bot(area: &mut Area, position: Position) -> Entity {
     area.pushables.attach(entity, Pushable::Squishable);
     entity
 }
-fn make_block(area: &mut Area, position: Position) -> Entity {
+pub fn make_block(area: &mut Area, position: Position) -> Entity {
     let entity = area.entities.make();
     area.positions.attach(entity, position);
     area.appearances.attach(entity, Appearance::Block);
