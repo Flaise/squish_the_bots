@@ -167,6 +167,7 @@ impl Rectangle {
         };
         Rectangle::xywh(topleft, topleft >> bottomright + South + East)
     }
+    
     pub fn corner_offsets(a: Offset, b: Offset) -> Rectangle {
         Rectangle::corners(a + Position::zero(), b + Position::zero())
     }
@@ -182,6 +183,42 @@ impl Rectangle {
         }
         ((p.x >= self.topleft.x) != (p.x >= bottomright.x)) &&
             ((p.y >= self.topleft.y) != (p.y >= bottomright.y))
+    }
+    
+    pub fn area(self) -> i32 {
+        (self.size.x * self.size.y).abs()
+    }
+}
+impl IntoIterator for Rectangle {
+    type Item = Position;
+    type IntoIter = RectangleContents;
+    
+    fn into_iter(self) -> Self::IntoIter {
+        RectangleContents {
+            subject: self,
+            cursor: Offset::zero(),
+        }
+    }
+}
+
+pub struct RectangleContents {
+    subject: Rectangle,
+    cursor: Offset,
+}
+impl Iterator for RectangleContents {
+    type Item = Position;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.cursor.y.abs() >= self.subject.size.y.abs() {
+            return None;
+        }
+        let result = self.subject.topleft + self.cursor;
+        self.cursor.x += self.subject.size.x.signum();
+        if self.cursor.x.abs() >= self.subject.size.x.abs() {
+            self.cursor.y += self.subject.size.y.signum();
+            self.cursor.x = 0;
+        }
+        Some(result)
     }
 }
 
@@ -272,4 +309,47 @@ fn containment() {
 fn direction_equality() {
     assert_eq!(East, East);
     assert!(East != West);
+}
+
+#[test]
+fn rectangle_iteration() {
+    let rect = Rectangle::wh(Offset::new(1, 1));
+    assert_eq!(rect.into_iter().collect::<Vec<_>>(), vec![Position::zero()]);
+    
+    let rect = Rectangle::wh(Offset::new(2, 1));
+    assert_eq!(rect.into_iter().collect::<Vec<_>>(),
+               vec![Position::zero(), Position::zero() + East]);
+    
+    let rect = Rectangle::wh(Offset::new(1, 2));
+    assert_eq!(rect.into_iter().collect::<Vec<_>>(),
+               vec![Position::zero(), Position::zero() + South]);
+    
+    let rect = Rectangle::wh(Offset::new(2, 2));
+    assert_eq!(rect.into_iter().collect::<Vec<_>>(),
+               vec![Position::zero(), Position::zero() + East, Position::zero() + South,
+                    Position::zero() + South + East]);
+}
+
+#[test]
+fn rectangle_iteration_2() {
+    let position = Position::zero() + North * 5 + West * 2;
+    let rect = Rectangle::xywh(position, East * 20 + South * 19);
+    for position in rect {
+        assert!(rect.contains(position));
+    }
+    
+    assert_eq!(rect.topleft, position); // rect should not be consumed by iterator
+}
+
+#[test]
+fn area() {
+    for rect in vec![
+        Rectangle::wh(East * 20 + South * 19),
+        Rectangle::wh(East * 10 + South * 1),
+        Rectangle::wh(West * 4 + South * 17),
+        Rectangle::wh(West * 4 + South * -3),
+        Rectangle::wh(East * -4 + North * 17),
+    ] {
+        assert_eq!(rect.area(), rect.into_iter().collect::<Vec<_>>().len() as i32);
+    }
 }

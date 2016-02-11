@@ -71,7 +71,10 @@ impl Area {
 impl Area {
     pub fn go(&mut self, entity: Entity, direction: Direction) -> Option<PushResult> {
         match self.positions.of(entity) {
-            None => None,
+            None => {
+                debug_unreachable!();
+                None
+            },
             Some(position) => {
                 let destination = position + direction;
                 let push_result = self.push(destination, direction);

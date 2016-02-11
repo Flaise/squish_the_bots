@@ -44,8 +44,8 @@ impl<R> Components<R> {
         self.contents.contains_key(&entity)
     }
     
-    pub fn detach(&mut self, entity: Entity) {
-        self.contents.remove(&entity);
+    pub fn detach(&mut self, entity: Entity) -> Option<R> {
+        self.contents.remove(&entity)
     }
     
     pub fn of_ref(&self, entity: Entity) -> Option<&R> {
@@ -63,18 +63,53 @@ impl<R: Clone> Components<R> {
     }
 }
 
+
+#[cfg(test)]
+#[derive(Hash, PartialEq, Eq, Debug)]
+struct NonCopyInteger(i32);
+
 #[test]
 fn attachment() {
     let entity = Entity(0);
     let mut group = Components::new();
     assert!(!group.attached(entity));
     assert_eq!(group.of(entity), None);
+    assert_eq!(group.detach(entity), None);
     
     group.attach(entity, 99);
     assert!(group.attached(entity));
     assert_eq!(group.of(entity), Some(99));
     
-    group.detach(entity);
+    assert_eq!(group.detach(entity), Some(99));
     assert!(!group.attached(entity));
     assert_eq!(group.of(entity), None);
+    
+    assert_eq!(group.detach(entity), None);
+}
+
+#[test]
+fn attachment_references() {
+    let entity = Entity(0);
+    let mut group = Components::new();
+    assert!(!group.attached(entity));
+    assert_eq!(group.of_ref(entity), None);
+    assert_eq!(group.detach(entity), None);
+    
+    let val = NonCopyInteger(99);
+    group.attach(entity, val);
+    assert!(group.attached(entity));
+    assert_eq!(group.of_ref(entity), Some(&NonCopyInteger(99)));
+    
+    {
+        let &mut NonCopyInteger(ref mut integer) = group.of_mut_ref(entity).unwrap();
+        *integer += 1;
+    }
+    assert_eq!(group.of_ref(entity), Some(&NonCopyInteger(100)));
+    
+    let opt_val = group.detach(entity);
+    assert_eq!(opt_val, Some(NonCopyInteger(100)));
+    assert!(!group.attached(entity));
+    assert_eq!(group.of_ref(entity), None);
+    
+    assert_eq!(group.detach(entity), None);
 }

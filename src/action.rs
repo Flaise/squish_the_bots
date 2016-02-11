@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{Read, Write};
 use std::mem::transmute;
 use space::*;
 use space::Direction::*;
@@ -173,15 +173,15 @@ impl Area {
                     None => (),
                     Some(PushResult::Success) => self.notify(bot, Notification::Success),
                     Some(PushResult::TooHeavy) => self.notify(bot, Notification::TooHeavy),
-                    Some(PushResult::DestroysEnterer) => (),
+                    Some(PushResult::DestroysEnterer) => (), // notified in remove() function
                 };
             },
             Command::Drill(direction) => (),//self.bot_drill(bot, direction),
-            Command::Malformed | Command::End => self.remove(bot),
+            Command::Malformed | Command::End => self.disconnect(bot),
         }
     }
     
-    fn all_actors(&self) -> Vec<Entity> {
+    pub fn all_actors(&self) -> Vec<Entity> {
         let mut result = Vec::with_capacity(self.inputs.contents.len());
         for (entity, input) in &self.inputs.contents {
             result.push(*entity);
@@ -197,7 +197,7 @@ impl Area {
     }
     
     // Returns the winners of the round
-    fn act_all(&mut self) -> Vec<Entity> {
+    pub fn act_all(&mut self) -> Vec<Entity> {
         loop {
             let entities = self.all_actors();
             if entities.len() <= 1 {
@@ -211,7 +211,9 @@ impl Area {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, parse_next, i8_into_u8, serialize_notification, Notification};
+    // use super::*;
+    use super::{Command, parse_next, i8_into_u8, serialize_notification, Notification,
+                CodeNorth, CodeEast, CodeSouth, CodeWest};
     use space::*;
     use space::Direction::*;
     use entity::*;
@@ -292,11 +294,11 @@ mod tests {
         assert_eq!(serialize_notification(Notification::YouSee(Appearance::Block)),
                    vec![6, 2]);
         assert_eq!(serialize_notification(Notification::YouSee(Appearance::Abyss)),
-                   *vec![6, 3]);
+                   vec![6, 3]);
     }
     
     #[test]
-    fn disappear() {
+    fn malformed_commands() {
         let streams = vec![
             vec![],
             vec![88],
@@ -311,9 +313,11 @@ mod tests {
             let mut area = Area::new();
             let bot = make_bot(&mut area, Position::zero());
             area.inputs.attach(bot, Box::new(Cursor::new(data)));
+            area.outputs.attach(bot, Box::new(vec![]));
             area.act(bot);
             
             assert_eq!(area.positions.of(bot), None);
+            assert_eq!(area.participants_in_waiting.len(), 0);
         }
     }
     
@@ -327,9 +331,14 @@ mod tests {
         area.inputs.attach(botA, Box::new(Cursor::new([2, 1])));
         area.inputs.attach(botB, Box::new(Cursor::new([])));
         
+        area.outputs.attach(botA, Box::new(vec![]));
+        area.outputs.attach(botB, Box::new(vec![]));
+        
         let entities = area.all_actors();
         assert_eq!(entities, &[botA, botB]);
-        area.act_vec(entities);
+        
+        let winners = area.act_all();
+        assert_eq!(winners, &[botA]);
         
         let entities = area.all_actors();
         assert_eq!(entities, &[botA]);
@@ -338,42 +347,39 @@ mod tests {
         assert_eq!(area.positions.of(botB), None);
         assert_eq!(area.positions.of(block), Some(Position::zero() + East * 2));
         
-        // TODO: test act_all()
+        assert_eq!(area.participants_in_waiting.len(), 1);
     }
     
     #[test]
-    fn notification_death() {
-        let mut area = Area::new();
-        let bot = make_bot(&mut area, Position::zero());
-        make_abyss(&mut area, Position::zero() + North);
+    fn command_feedback() {
+        let streams = vec![
+            (vec![2, CodeNorth], vec![1, 2]), // died
+            (vec![2, CodeEast], vec![1, 3]), // success
+            (vec![2, CodeWest], vec![1, 4]), // too heavy
+            (vec![1, i8_into_u8(0), i8_into_u8(-1)], vec![1, 6, 0]), // floor
+            (vec![1, i8_into_u8(0), i8_into_u8(0)], vec![1, 6, 1]), // bot
+            (vec![1, i8_into_u8(-1), i8_into_u8(0)], vec![1, 6, 2]), // wall
+            (vec![1, i8_into_u8(0), i8_into_u8(1)], vec![1, 6, 3]), // abyss
+        ];
         
-        area.inputs.attach(bot, Box::new(Cursor::new([2, 0])));
-        
-        let output = Rc::new(RefCell::new(Vec::<u8>::new()));
-        let shared = SharedWrite { writer: output.clone() };
-        
-        area.outputs.attach(bot, Box::new(shared));
-        
-        area.act(bot);
-        
-        assert_eq!(Rc::try_unwrap(output).unwrap().into_inner(), vec![1, 2]);
-    }
-    
-    #[test]
-    fn notification_success() {
-        let output = Rc::new(RefCell::new(Vec::<u8>::new()));
-        {
-            let mut area = Area::new();
-            let bot = make_bot(&mut area, Position::zero());
-            area.inputs.attach(bot, Box::new(Cursor::new([2, 0])));
+        for (instream, outstream) in streams {
+            let output = Rc::new(RefCell::new(Vec::<u8>::new()));
+            {
+                let mut area = Area::new();
+                let bot = make_bot(&mut area, Position::zero());
+                area.inputs.attach(bot, Box::new(Cursor::new(instream)));
+                make_abyss(&mut area, Position::zero() + North);
+                make_block(&mut area, Position::zero() + West);
+                make_block(&mut area, Position::zero() + West * 2);
+                
+                let shared = SharedWrite { writer: output.clone() };
+                area.outputs.attach(bot, Box::new(shared));
+                
+                area.act(bot);
+            }
             
-            let shared = SharedWrite { writer: output.clone() };
-            area.outputs.attach(bot, Box::new(shared));
-            
-            area.act(bot);
+            assert_eq!(Rc::try_unwrap(output).unwrap().into_inner(), outstream);
         }
-        
-        assert_eq!(Rc::try_unwrap(output).unwrap().into_inner(), vec![1, 3]);
     }
     
     struct SharedWrite {

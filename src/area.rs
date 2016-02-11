@@ -36,6 +36,7 @@ pub struct Area {
     pub pushables: Components<Pushable>,
     pub inputs: Components<Box<Read>>,
     pub outputs: Components<Box<Write>>,
+    pub participants_in_waiting: Vec<(Box<Read>, Box<Write>)>,
     pub entities: Entities,
 }
 impl Area {
@@ -46,6 +47,7 @@ impl Area {
             pushables: Components::new(),
             inputs: Components::new(),
             outputs: Components::new(),
+            participants_in_waiting: Vec::new(),
             entities: Entities::new(),
         }
     }
@@ -53,6 +55,22 @@ impl Area {
     pub fn remove(&mut self, entity: Entity) {
         self.notify(entity, Notification::YouDied);
         
+        match (self.inputs.detach(entity), self.outputs.detach(entity)) {
+            (Some(input), Some(output)) => {
+                self.participants_in_waiting.push((input, output));
+            },
+            _ => (),
+            // One might be missing in unit tests.
+            // If it happens in production, something went wrong and it's probably
+            // safest to let the other deallocate.
+        }
+        
+        self.positions.detach(entity);
+        self.appearances.detach(entity);
+        self.pushables.detach(entity);
+    }
+    
+    pub fn disconnect(&mut self, entity: Entity) {
         self.positions.detach(entity);
         self.appearances.detach(entity);
         self.pushables.detach(entity);
@@ -96,18 +114,6 @@ fn appearance() {
     assert_eq!(area.appearance_at(b), Appearance::Block);
     assert_eq!(area.appearance_at(c), Appearance::Floor);
 }
-
-// #[test]
-// fn abyss_around_arena() {
-//     let (_, _, _, area) = test_data();
-    
-//     assert_eq!(area.appearance_at(Position::new(0, 0)), Appearance::Floor);
-//     assert_eq!(area.appearance_at(Position::new(-1, 0)), Appearance::Abyss);
-//     assert_eq!(area.appearance_at(Position::new(0, -1)), Appearance::Abyss);
-//     assert_eq!(area.appearance_at(Position::new(10, 0)), Appearance::Abyss);
-//     assert_eq!(area.appearance_at(Position::new(0, 10)), Appearance::Abyss);
-//     assert_eq!(area.appearance_at(Position::new(10, 10)), Appearance::Abyss);
-// }
 
 #[test]
 fn travelment() {

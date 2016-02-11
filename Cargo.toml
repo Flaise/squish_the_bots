@@ -2,3 +2,6 @@
 name = "squish_the_bots"
 version = "0.1.0"
 authors = ["Flaise <x.Flaise@gmail.com>"]
+
+[dependencies]
+rand = "0.3.13"
