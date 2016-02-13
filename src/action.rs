@@ -154,14 +154,14 @@ impl Area {
         self.notify(bot, Notification::YourTurn);
         
         let command = match self.inputs.of_mut_ref(bot) {
-            None => return, // shouldn't happen
+            None => return,
             Some(mut input) => parse_next(&mut input),
         };
         
         match command {
             Command::LookAt(offset) => {
                 let here = match self.positions.of(bot) {
-                    None => return, // shouldn't happen
+                    None => debug_unreachable!(return),
                     Some(here) => here,
                 };
                 let notification = Notification::YouSee(self.appearance_at(here + offset));

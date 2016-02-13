@@ -7,13 +7,12 @@ mod action;
 mod appearance;
 mod area;
 mod entity;
+mod network;
 mod positioned;
 mod pushable;
 mod session;
 mod space;
-mod stream;
 
 
 fn main() {
-    // debug_unreachable!(return)
 }

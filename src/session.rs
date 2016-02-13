@@ -147,3 +147,15 @@ fn generation() {
         assert!(area.positions.contents.len() <= upper_limit as usize);
     }
 }
+
+#[test]
+fn single_round_disconnection() {
+    let mut participants: Vec<(Box<Read>, Box<Write>)> = vec![
+        (Box::new(Cursor::new([2, 1])), Box::new(vec![])),
+        (Box::new(Cursor::new([])), Box::new(vec![])), // EoF causes disconnection
+    ];
+    
+    execute_round(&mut participants);
+    
+    assert_eq!(participants.len(), 1);
+}

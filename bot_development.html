@@ -47,10 +47,20 @@ bot's code is stable before having it compete.
 <h3>Input</h3>
 
 <h4>Look At</h4>
-1 as an unsigned byte
-a signed byte
-a signed byte
+To look at a location, send the following data to the server:<br>
+- [1] as an unsigned byte<br>
+- The east-west position of the position you want to examine, relative to your bot's current
+position, as signed byte. Positive values are to the east and negative values are to the west.<br>
+- The north-south position of the position you want to examine, relative to your bot's current
+position, as signed byte. Positive values are to the north and negative values are to the
+south.<br>
 
-positive Y is north, positive X is east
+The output will be one of the following:
+
+<!--TODO-->
+
+The laws of physics make it impossible to observe any event happening outside of a 256x256 square.
+This I/O protocol has therefore been designed so that only a single byte is used for each
+coordinate.
 
 <h3>Output</h3>

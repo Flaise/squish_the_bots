@@ -59,10 +59,7 @@ impl Area {
             (Some(input), Some(output)) => {
                 self.participants_in_waiting.push((input, output));
             },
-            _ => (),
-            // One might be missing in unit tests.
-            // If it happens in production, something went wrong and it's probably
-            // safest to let the other deallocate.
+            _ => (), // TODO: change tests to allow debug_unreachable!() here
         }
         
         self.positions.detach(entity);
