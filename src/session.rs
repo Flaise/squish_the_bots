@@ -9,8 +9,8 @@ use space::Direction::*;
 use action::*;
 use entity::*;
 
-    
-fn execute_round(participants: &mut Vec<(Box<Read>, Box<Write>)>) {//-> Vec<(Box<Read>, Box<Write>)> {
+
+fn execute_round(participants: &mut Vec<(Box<Read>, Box<Write>)>) {
     let mut area = generate_area(participants.drain(..).collect::<Vec<_>>());
     
     let actors = area.all_actors();
@@ -65,7 +65,6 @@ fn generate_area(participants: Vec<(Box<Read>, Box<Write>)>) -> Area {
     let mut positions = random_unoccupied_position_list(&area, bounds, limit);
     
     for (reader, writer) in participants {
-        // match random_unoccupied_position(&area, bounds) {
         match positions.pop() {
             None => debug_unreachable!(break),
             Some(position) => {

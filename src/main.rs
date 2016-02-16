@@ -1,3 +1,5 @@
+#![deny(unused_must_use)]
+
 extern crate rand;
 
 #[macro_use]
