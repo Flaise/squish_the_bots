@@ -8,15 +8,12 @@ use space::*;
 use space::Direction::*;
 use action::*;
 use entity::*;
+use notification::*;
 
 
-fn execute_round(participants: &mut Vec<(Box<Read>, Box<Write>)>) {
+pub fn execute_round(participants: &mut Vec<(Box<Read>, Box<Write>)>) {
     let mut area = generate_area(participants.drain(..).collect::<Vec<_>>());
     
-    let actors = area.all_actors();
-    for entity in actors {
-        area.notify(entity, Notification::NewRound);
-    }
     let winners = area.act_all();
     // TODO: maybe send win/draw condition notifications
     
@@ -30,7 +27,7 @@ impl Area {
         for (entity, reader) in self.inputs.contents.drain() {
             match readers.entry(entity) {
                 Occupied(entry) => debug_unreachable!(),
-                Vacant(entry) => entry.insert(reader),
+                Vacant(entry) => { entry.insert(reader); },
             };
         }
         
@@ -38,7 +35,7 @@ impl Area {
         for (entity, writer) in self.outputs.contents.drain() {
             match readers.remove(&entity) {
                 None => debug_unreachable!(),
-                Some(reader) => pairs.insert(entity, (reader, writer)),
+                Some(reader) => { pairs.insert(entity, (reader, writer)); },
             };
         }
         
@@ -78,8 +75,8 @@ fn generate_area(participants: Vec<(Box<Read>, Box<Write>)>) -> Area {
     
     for position in positions {
         match rng.gen_range(0, 1) {
-            0 => make_block(&mut area, position),
-            1 => make_abyss(&mut area, position),
+            0 => { make_block(&mut area, position); },
+            1 => { make_abyss(&mut area, position); },
             _ => debug_unreachable!(),
         };
     }
@@ -96,6 +93,7 @@ fn random_unoccupied_position(area: &Area, bounds: Rectangle) -> Option<Position
 }
 
 fn random_unoccupied_position_list(area: &Area, bounds: Rectangle, limit: usize) -> Vec<Position> {
+    // TODO: this only works on new, empty areas
     let mut rng = thread_rng();
     let mut positions = bounds.into_iter().collect::<Vec<_>>();
     rng.shuffle(&mut positions);

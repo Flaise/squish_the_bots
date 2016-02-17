@@ -3,9 +3,10 @@ use std::mem::transmute;
 use space::*;
 use space::Direction::*;
 use area::*;
-use appearance::*;
 use entity::*;
 use pushable::*;
+use appearance::*;
+use notification::*;
 
 
 #[derive(PartialEq, Debug)]
@@ -18,17 +19,6 @@ enum Command {
 }
 
 
-#[derive(PartialEq, Debug)]
-pub enum Notification {
-    YourTurn,
-    YouSee(Appearance),
-    YouDied,
-    Success,
-    TooHeavy,
-    NewRound,
-}
-
-
 const CodeLookAt: u8 = 1;
 const CodeMove: u8 = 2;
 const CodeDrill: u8 = 3;
@@ -38,11 +28,6 @@ const CodeEast: u8 = 1;
 const CodeSouth: u8 = 2;
 const CodeWest: u8 = 3;
 
-const CodeFloor: u8 = 0;
-const CodeBot: u8 = 1;
-const CodeBlock: u8 = 2;
-const CodeAbyss: u8 = 3;
-
 
 fn code_to_direction(code: u8) -> Option<Direction> {
     match code {
@@ -51,15 +36,6 @@ fn code_to_direction(code: u8) -> Option<Direction> {
         CodeSouth => Some(South),
         CodeWest => Some(West),
         _ => None,
-    }
-}
-
-fn appearance_to_code(appearance: Appearance) -> u8 {
-    match appearance {
-        Appearance::Floor => CodeFloor,
-        Appearance::Bot => CodeBot,
-        Appearance::Block => CodeBlock,
-        Appearance::Abyss => CodeAbyss,
     }
 }
 
@@ -122,26 +98,15 @@ fn parse_next(bytes: &mut Read) -> Command {
     }
 }
 
-fn serialize_notification(notification: Notification) -> Vec<u8> {
-    match notification {
-        Notification::YourTurn => vec![1],
-        Notification::YouDied => vec![2],
-        Notification::Success => vec![3],
-        Notification::TooHeavy => vec![4],
-        Notification::NewRound => vec![5],
-        Notification::YouSee(appearance) => vec![6, appearance_to_code(appearance)],
-    }
-}
-
 
 impl Area {
     pub fn notify(&mut self, bot: Entity, notification: Notification) {
         let error = {
-            let output = match self.outputs.of_mut_ref(bot) {
+            let mut output = match self.outputs.of_mut_ref(bot) {
                 None => return,
                 Some(output) => output,
             };
-            match output.write_all(serialize_notification(notification).as_ref()) {
+            match notify(&mut output, notification) {
                 Ok(_) => return,
                 Err(error) => error,
             }
@@ -211,19 +176,19 @@ impl Area {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    use super::{Command, parse_next, i8_into_u8, serialize_notification, Notification,
+    use super::{Command, parse_next, i8_into_u8,
                 CodeNorth, CodeEast, CodeSouth, CodeWest};
     use space::*;
     use space::Direction::*;
     use entity::*;
-    use std::io;
-    use std::io::{Write, Cursor};
+    use std::io::{self, Write, Cursor};
     use std::rc::{Rc, Weak};
     use std::cell::RefCell;
     use area::*;
     use appearance::*;
     use std::borrow::Borrow;
+    
+    use super::super::tests::{SharedWrite};
     
     #[test]
     fn parsing() {
@@ -279,22 +244,6 @@ mod tests {
         
         let mut commands = Cursor::new([3, 4]);
         assert_eq!(parse_next(&mut commands), Command::Malformed);
-    }
-    
-    #[test]
-    fn serializing() {
-        assert_eq!(serialize_notification(Notification::YourTurn), vec![1]);
-        assert_eq!(serialize_notification(Notification::YouDied), vec![2]);
-        assert_eq!(serialize_notification(Notification::Success), vec![3]);
-        assert_eq!(serialize_notification(Notification::TooHeavy), vec![4]);
-        assert_eq!(serialize_notification(Notification::NewRound), vec![5]);
-        assert_eq!(serialize_notification(Notification::YouSee(Appearance::Floor)), vec![6, 0]);
-        assert_eq!(serialize_notification(Notification::YouSee(Appearance::Bot)),
-                   vec![6, 1]);
-        assert_eq!(serialize_notification(Notification::YouSee(Appearance::Block)),
-                   vec![6, 2]);
-        assert_eq!(serialize_notification(Notification::YouSee(Appearance::Abyss)),
-                   vec![6, 3]);
     }
     
     #[test]
@@ -362,7 +311,7 @@ mod tests {
             (vec![1, i8_into_u8(0), i8_into_u8(1)], vec![1, 6, 3]), // abyss
         ];
         
-        for (instream, outstream) in streams {
+        for (instream, target) in streams {
             let output = Rc::new(RefCell::new(Vec::<u8>::new()));
             {
                 let mut area = Area::new();
@@ -372,25 +321,13 @@ mod tests {
                 make_block(&mut area, Position::zero() + West);
                 make_block(&mut area, Position::zero() + West * 2);
                 
-                let shared = SharedWrite { writer: output.clone() };
+                let shared = SharedWrite::new(output.clone());
                 area.outputs.attach(bot, Box::new(shared));
                 
                 area.act(bot);
             }
             
-            assert_eq!(Rc::try_unwrap(output).unwrap().into_inner(), outstream);
-        }
-    }
-    
-    struct SharedWrite {
-        writer: Rc<RefCell<Write>>,
-    }
-    impl Write for SharedWrite {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.writer.borrow_mut().write(buf)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            self.writer.borrow_mut().flush()
+            assert_eq!(Rc::try_unwrap(output).unwrap().into_inner(), target);
         }
     }
 }

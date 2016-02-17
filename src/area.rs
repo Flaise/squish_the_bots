@@ -1,10 +1,11 @@
+use std::io::{Read, Write};
 use appearance::*;
 use space::*;
 use space::Direction::*;
 use entity::*;
 use pushable::*;
 use action::*;
-use std::io::{Read, Write};
+use notification::*;
 
 
 pub fn make_bot(area: &mut Area, position: Position) -> Entity {

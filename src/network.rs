@@ -47,7 +47,7 @@ impl Drop for Server {
 
 fn extract_connections(tcp_listener: TcpListener, sender: Sender<(TcpStream, SocketAddr)>)
         -> io::Result<JoinHandle<io::Result<()>>> {
-    thread::Builder::new().name("TCP listener".to_string()).spawn(move|| {
+    thread::Builder::new().name("TCP Listener".to_string()).spawn(move|| {
         loop {
             let connection = try!(tcp_listener.accept());
             
