@@ -73,10 +73,12 @@ fn start<A>(tcp_listener: TcpListener, mut callback: A, stopped: Arc<RwLock<bool
     })
 }
 
-fn single_lobby<A: ToSocketAddrs>(address: A) -> io::Result<Server> {
+fn single_lobby<A: ToSocketAddrs>(address: A, timeout: Duration) -> io::Result<Server> {
     let mut lobby = try!(Lobby::new());
     
     Server::new(address, move|stream: TcpStream, address: SocketAddr| {
+        try!(stream.set_read_timeout(Some(timeout)));
+        
         let stream2 = try!(stream.try_clone());
         
         match lobby.add(Participant::new_boxed(stream, stream2)) {
@@ -128,7 +130,7 @@ fn terminate_implicit() {
 
 #[test]
 fn simple_interaction() {
-    let server = single_lobby("127.0.0.1:0").unwrap();
+    let server = single_lobby("127.0.0.1:0", Duration::from_millis(99999)).unwrap();
     {
         let addr = server.addr;
         
@@ -162,6 +164,40 @@ fn simple_interaction() {
         assert_eq!(buf[0..4], [5, 1, 6, 1]);
         
         // NewRound, YourTurn, YouSee, Bot, YourTurn = 5 1 6 1 1
+    }
+    
+    server.stop().join().unwrap().unwrap();
+}
+
+#[test]
+fn client_timeout() {
+    let server = single_lobby("127.0.0.1:0", Duration::from_millis(50)).unwrap();
+    {
+        let addr = server.addr;
+        
+        let mut client_a = TcpStream::connect(addr).unwrap();
+        let mut client_b = TcpStream::connect(addr).unwrap();
+        
+        client_b.write_all(&[1, 0, 0, 1, 0, 0]).unwrap();
+        
+        // LookAt, 0 dx, 0 dy = 1 0 0
+        
+        thread::sleep(Duration::from_millis(100));
+        
+        let mut buf = [0; 10];
+        let res = client_a.read(&mut buf);
+        assert!(res.is_ok(), "{:?}", res);
+        assert_eq!(res.unwrap(), 2);
+        assert_eq!(buf[0..2], [5, 1]);
+        
+        let mut buf = [200; 10];
+        let res = client_b.read(&mut buf);
+        assert!(res.is_ok(), "{:?}", res);
+        let res = res.unwrap();
+        assert!(res == 4, "{:?}", buf);
+        assert_eq!(buf[0..4], [5, 1, 6, 1]);
+        
+        // NewRound, YourTurn, YouSee, Bot = 5 1 6 1
     }
     
     server.stop().join().unwrap().unwrap();
