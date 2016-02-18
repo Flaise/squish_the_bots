@@ -111,8 +111,8 @@ impl Area {
                 Err(error) => error,
             }
         };
-        println!("WARNING: {:?}", error);
-        self.remove(bot);
+        println!("{:?} disconnected during notify: {:?}", bot, error);
+        self.disconnect(bot);
     }
     
     fn act(&mut self, bot: Entity) {
@@ -186,7 +186,7 @@ mod tests {
     use std::cell::RefCell;
     use area::*;
     use appearance::*;
-    use std::borrow::Borrow;
+    use notification::*;
     
     use super::super::tests::{SharedWrite};
     
@@ -329,5 +329,22 @@ mod tests {
             
             assert_eq!(Rc::try_unwrap(output).unwrap().into_inner(), target);
         }
+    }
+    
+    #[test]
+    fn disconnect_during_notify() {
+        let output = Rc::new(RefCell::new(Vec::<u8>::new()));
+        let mut shared = SharedWrite::new(output.clone());
+        drop(output);
+        shared.close();
+        
+        let mut area = Area::new();
+        let bot = make_bot(&mut area, Position::zero());
+        
+        area.outputs.attach(bot, Box::new(shared));
+        
+        area.notify(bot, Notification::YourTurn);
+        
+        assert_eq!(area.outputs.contents.len(), 0);
     }
 }

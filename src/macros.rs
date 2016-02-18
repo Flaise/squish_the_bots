@@ -9,7 +9,7 @@ macro_rules! debug_unreachable {
         unreachable!()
     };
     (break) => {
-        break
+        unreachable!()
     };
 }
 

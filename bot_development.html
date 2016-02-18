@@ -64,3 +64,25 @@ This I/O protocol has therefore been designed so that only a single byte is used
 coordinate.
 
 <h3>Output</h3>
+
+
+<h2>About the project</h2>
+
+<h3>Thoughts about Rust</h3>
+
+<ul>
+<li>Object life cycles are simple - because deallocation is deterministic and ownership is built
+into the type system, there is no need for most objects to have internal finite state machines.
+When you're done with an object, you either let it go out of scope or explicitly drop it and it
+performs any necessary cleanup once and only once.</li>
+<li>The type system detects when you attempt to modify a collection while iterating over it, which
+is mildly amazing. There are cases where the Rust compiler will flag code as being unsafe when it
+actually is safe but the rewrites are no less clear than these cases and it's preferable to have
+an automated type checker verifying these things than to have code look more compact and neat for
+the benefit of a coder who is going to make mistakes.</li>
+<li>For the most part, I did not have to modify code after I had written it. The only exceptions
+were when I needed to alter an API because I had learned more about the requirements of the code
+and when a function I'd used was nondeterministic with respect to the call site. It's difficult to
+write unit tests for procedural generation, networking, and AI. Everything else was no hassle to
+debug and test.</li>
+</ul>

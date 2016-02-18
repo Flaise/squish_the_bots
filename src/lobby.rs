@@ -8,18 +8,19 @@ use notification::*;
 use session::*;
 
 
-struct Participant {
+pub struct Participant {
     input: Box<Read>,
     output: Box<Write>,
 }
 impl Participant {
-    fn new(input: Box<Read>, output: Box<Write>) -> Participant {
+    pub fn new(input: Box<Read>, output: Box<Write>) -> Participant {
         Participant {
             input: input,
             output: output,
         }
     }
-    fn new_boxed<R: 'static+Read+Sized, W: 'static+Write+Sized>(input: R, output: W) -> Participant {
+    pub fn new_boxed<R: 'static+Read+Sized, W: 'static+Write+Sized>(input: R, output: W)
+            -> Participant {
         Self::new(Box::new(input), Box::new(output))
     }
 }
@@ -27,12 +28,12 @@ unsafe impl Send for Participant {
 }
 
 
-struct Lobby {
+pub struct Lobby {
     sender: Sender<Participant>,
     join_handle: JoinHandle<()>,
 }
 impl Lobby {
-    fn new() -> io::Result<Lobby> {
+    pub fn new() -> io::Result<Lobby> {
         let (sender, receiver) = channel();
         let join_handle = try!(start_lobby(receiver));
         
@@ -42,7 +43,7 @@ impl Lobby {
         })
     }
     
-    fn add(&self, participant: Participant) -> Result<(), SendError<Participant>> {
+    pub fn add(&self, participant: Participant) -> Result<(), SendError<Participant>> {
         self.sender.send(participant)
     }
     
@@ -73,7 +74,7 @@ fn start_lobby(receiver: Receiver<Participant>) -> io::Result<JoinHandle<()>> {
             }
             
             let elements = participants.drain(..).collect::<Vec<(Box<Read>, Box<Write>)>>();
-            for (mut input, mut output) in elements.into_iter() {
+            for (mut input, mut output) in elements {
                 let notify_result = notify(&mut output, Notification::NewRound);
                 match notify_result {
                     Ok(()) => participants.push((input, output)),
