@@ -9,6 +9,7 @@ use space::Direction::*;
 use action::*;
 use entity::*;
 use notification::*;
+use appearance::*;
 
 
 pub fn execute_round(participants: &mut Vec<(Box<Read>, Box<Write>)>) {
@@ -81,6 +82,17 @@ fn generate_area(participants: Vec<(Box<Read>, Box<Write>)>) -> Area {
         };
     }
     
+    let outer_bounds = Rectangle::corners(
+        Position::zero() + West + North,
+        Position::zero() + East * (length + 1) + South * (length + 1)
+    );
+    for position in outer_bounds {
+        if bounds.contains(position) {
+            continue;
+        }
+        make_abyss(&mut area, position);
+    }
+    
     area
 }
 
@@ -141,7 +153,31 @@ fn generation() {
         assert_eq!(area.outputs.contents.len(), num_part);
         
         assert!(area.positions.contents.len() >= lower_limit as usize);
-        assert!(area.positions.contents.len() <= upper_limit as usize);
+        
+        // TODO: non-positional boundaries
+        // assert!(area.positions.contents.len() <= upper_limit as usize);
+    }
+}
+
+#[test]
+fn outer_boundaries() {
+    for _ in 0..100 {
+        let area = generate_area(vec![]);
+        
+        let length = 10;
+        let bounds = Rectangle::wh(East * length + South * length);
+        
+        let outer_bounds = Rectangle::corners(
+            Position::zero() + West + North,
+            Position::zero() + East * (length + 1) + South * (length + 1)
+        );
+        
+        for position in outer_bounds {
+            if bounds.contains(position) {
+                continue;
+            }
+            assert_eq!(area.appearance_at(position), Appearance::Abyss);
+        }
     }
 }
 

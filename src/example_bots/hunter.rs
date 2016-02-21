@@ -41,6 +41,7 @@ impl Direction {
     }
 }
 
+
 #[derive(Copy, Clone)]
 enum Action {
     LookAt(i8, i8),
@@ -83,6 +84,7 @@ fn code_to_thing(code: u8) -> Option<Thing> {
         _ => None,
     }
 }
+
 
 #[derive(Copy, Clone)]
 enum Sighting {
@@ -192,7 +194,7 @@ impl Model {
                         Some(Sighting::Floor { last_spotted }) |
                         Some(Sighting::Block { last_spotted, .. }) |
                         Some(Sighting::Bot { last_spotted }) => {
-                            if last_spotted + 20 < self.time {
+                            if last_spotted + 40 < self.time {
                                 return (x, y)
                             }
                         }
@@ -302,6 +304,23 @@ pub fn start<A: ToSocketAddrs+Send+'static>(address: A, name: String, logs: bool
             match buf[0] {
                 1 => {
                     log(&*format!("It's my turn. I am at [{}, {}].", model.here.0, model.here.1));
+                    
+                    let mut view = String::new();
+                    view.push('\n');
+                    for y in -2..3 {
+                        for x in -2..3 {
+                            match model.at_relative(x, y) {
+                                None => view.push('?'),
+                                Some(Sighting::Floor {..}) => view.push(' '),
+                                Some(Sighting::Abyss) => view.push('0'),
+                                Some(Sighting::Bot {..}) => view.push('!'),
+                                Some(Sighting::Block {..}) => view.push('H'),
+                            }
+                            view.push(' ');
+                        }
+                        view.push('\n');
+                    }
+                    log(&*view);
                     
                     let action = model.search();
                     log(&*format!("{}", action));
