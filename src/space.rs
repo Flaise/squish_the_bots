@@ -10,6 +10,11 @@ pub enum Direction {
     South,
     West,
 }
+impl Direction {
+    pub fn all() -> Vec<Direction> {
+        vec![North, East, South, West]
+    }
+}
 impl Mul<i32> for Direction {
     type Output = Offset;
     

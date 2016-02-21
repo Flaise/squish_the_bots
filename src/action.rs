@@ -130,7 +130,7 @@ impl Area {
                 };
                 let notification = Notification::YouSee(self.appearance_at(here + offset));
                 self.notify(bot, notification);
-            },
+            }
             Command::Move(direction) => {
                 let push_result = self.go(bot, direction);
                 match push_result {
@@ -139,8 +139,15 @@ impl Area {
                     Some(PushResult::TooHeavy) => self.notify(bot, Notification::TooHeavy),
                     Some(PushResult::DestroysEnterer) => (), // notified in remove() function
                 };
-            },
-            Command::Drill(direction) => (),//self.bot_drill(bot, direction),
+            }
+            Command::Drill(direction) => {
+                let drill_result = self.drill(bot, direction);
+                match drill_result {
+                    None => (),
+                    Some(DrillResult::Success) => self.notify(bot, Notification::Success),
+                    Some(DrillResult::DestroysEnterer) => (), // notified in remove() function
+                };
+            }
             Command::Malformed | Command::End => self.disconnect(bot),
         }
     }

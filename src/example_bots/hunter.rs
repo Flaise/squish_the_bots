@@ -217,21 +217,7 @@ impl Model {
         options.push(scan);
         options.push(scan);
         
-        let random = self.random_seed();
-        
-        options[random as usize % options.len()]
-    }
-    
-    fn random_seed(&self) -> u32 {
-        for sighting in self.sightings.values() {
-            match *sighting {
-                Sighting::Abyss => continue,
-                Sighting::Floor { last_spotted, .. } => return self.time - last_spotted,
-                Sighting::Bot { last_spotted, .. } => return self.time - last_spotted,
-                Sighting::Block { last_spotted, .. } => return self.time - last_spotted,
-            }
-        }
-        self.time
+        options[self.time as usize % options.len()]
     }
     
     fn wander_actions(&self) -> Vec<Action> {
@@ -309,6 +295,12 @@ pub fn start<A: ToSocketAddrs+Send+'static>(address: A, name: String, logs: bool
                     view.push('\n');
                     for y in -2..3 {
                         for x in -2..3 {
+                            let y = -y;
+                            if (x, y) == (0, 0) {
+                                view.push('X');
+                                view.push(' ');
+                                continue;
+                            }
                             match model.at_relative(x, y) {
                                 None => view.push('?'),
                                 Some(Sighting::Floor {..}) => view.push(' '),
@@ -327,6 +319,9 @@ pub fn start<A: ToSocketAddrs+Send+'static>(address: A, name: String, logs: bool
                     stream.write_all(&action.serialize()).unwrap();
                     model.last_action = Some(action);
                     model.tick();
+                }
+                2 => {
+                    log("Dead.");
                 }
                 3 => {
                     log("Successful.");
