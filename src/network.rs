@@ -11,8 +11,8 @@ use space::Direction::*;
 use lobby::*;
 
 
-struct Server {
-    addr: SocketAddr,
+pub struct Server {
+    pub addr: SocketAddr,
     join_handle: Option<JoinHandle<io::Result<()>>>,
     stopped: Arc<RwLock<bool>>,
 }
@@ -73,7 +73,7 @@ fn start<A>(tcp_listener: TcpListener, mut callback: A, stopped: Arc<RwLock<bool
     })
 }
 
-fn single_lobby<A: ToSocketAddrs>(address: A, timeout: Duration) -> io::Result<Server> {
+pub fn single_lobby<A: ToSocketAddrs>(address: A, timeout: Duration) -> io::Result<Server> {
     let mut lobby = try!(Lobby::new());
     
     Server::new(address, move|stream: TcpStream, address: SocketAddr| {

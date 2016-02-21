@@ -1,11 +1,10 @@
-use std::io::{Read, Write};
+use std::io::Read;
 use std::mem::transmute;
 use space::*;
 use space::Direction::*;
 use area::*;
 use entity::*;
 use pushable::*;
-use appearance::*;
 use notification::*;
 
 
@@ -19,22 +18,22 @@ enum Command {
 }
 
 
-const CodeLookAt: u8 = 1;
-const CodeMove: u8 = 2;
-const CodeDrill: u8 = 3;
+const CODE_LOOK_AT: u8 = 1;
+const CODE_MOVE: u8 = 2;
+const CODE_DRILL: u8 = 3;
 
-const CodeNorth: u8 = 0;
-const CodeEast: u8 = 1;
-const CodeSouth: u8 = 2;
-const CodeWest: u8 = 3;
+const CODE_NORTH: u8 = 0;
+const CODE_EAST: u8 = 1;
+const CODE_SOUTH: u8 = 2;
+const CODE_WEST: u8 = 3;
 
 
 fn code_to_direction(code: u8) -> Option<Direction> {
     match code {
-        CodeNorth => Some(North),
-        CodeEast => Some(East),
-        CodeSouth => Some(South),
-        CodeWest => Some(West),
+        CODE_NORTH => Some(North),
+        CODE_EAST => Some(East),
+        CODE_SOUTH => Some(South),
+        CODE_WEST => Some(West),
         _ => None,
     }
 }
@@ -57,7 +56,7 @@ fn parse_next(bytes: &mut Read) -> Command {
     }
     
     match buf[0] {
-        CodeLookAt => {
+        CODE_LOOK_AT => {
             if bytes.read(&mut buf).ok() != Some(1) {
                 return Command::End;
             }
@@ -74,7 +73,7 @@ fn parse_next(bytes: &mut Read) -> Command {
             
             return Command::LookAt(East * dx + North * dy);
         },
-        CodeMove => {
+        CODE_MOVE => {
             if bytes.read(&mut buf).ok() != Some(1) {
                 return Command::End;
             }
@@ -84,7 +83,7 @@ fn parse_next(bytes: &mut Read) -> Command {
                 None => Command::Malformed,
             };
         },
-        CodeDrill => {
+        CODE_DRILL => {
             if bytes.read(&mut buf).ok() != Some(1) {
                 return Command::End;
             }
@@ -148,7 +147,7 @@ impl Area {
     
     pub fn all_actors(&self) -> Vec<Entity> {
         let mut result = Vec::with_capacity(self.inputs.contents.len());
-        for (entity, input) in &self.inputs.contents {
+        for (entity, _) in &self.inputs.contents {
             result.push(*entity);
         }
         result.sort();
@@ -177,15 +176,13 @@ impl Area {
 #[cfg(test)]
 mod tests {
     use super::{Command, parse_next, i8_into_u8,
-                CodeNorth, CodeEast, CodeSouth, CodeWest};
+                CODE_NORTH, CODE_EAST, CODE_WEST};
     use space::*;
     use space::Direction::*;
-    use entity::*;
-    use std::io::{self, Write, Cursor};
-    use std::rc::{Rc, Weak};
+    use std::io::Cursor;
+    use std::rc::Rc;
     use std::cell::RefCell;
     use area::*;
-    use appearance::*;
     use notification::*;
     
     use super::super::tests::{SharedWrite};
@@ -273,27 +270,27 @@ mod tests {
     #[test]
     fn win() {
         let mut area = Area::new();
-        let botA = make_bot(&mut area, Position::zero());
-        let botB = make_bot(&mut area, Position::zero() + East);
+        let bot_a = make_bot(&mut area, Position::zero());
+        let bot_b = make_bot(&mut area, Position::zero() + East);
         let block = make_block(&mut area, Position::zero() + East * 2);
         
-        area.inputs.attach(botA, Box::new(Cursor::new([2, 1])));
-        area.inputs.attach(botB, Box::new(Cursor::new([])));
+        area.inputs.attach(bot_a, Box::new(Cursor::new([2, 1])));
+        area.inputs.attach(bot_b, Box::new(Cursor::new([])));
         
-        area.outputs.attach(botA, Box::new(vec![]));
-        area.outputs.attach(botB, Box::new(vec![]));
+        area.outputs.attach(bot_a, Box::new(vec![]));
+        area.outputs.attach(bot_b, Box::new(vec![]));
         
         let entities = area.all_actors();
-        assert_eq!(entities, &[botA, botB]);
+        assert_eq!(entities, &[bot_a, bot_b]);
         
         let winners = area.act_all();
-        assert_eq!(winners, &[botA]);
+        assert_eq!(winners, &[bot_a]);
         
         let entities = area.all_actors();
-        assert_eq!(entities, &[botA]);
+        assert_eq!(entities, &[bot_a]);
         
-        assert_eq!(area.positions.of(botA), Some(Position::zero() + East));
-        assert_eq!(area.positions.of(botB), None);
+        assert_eq!(area.positions.of(bot_a), Some(Position::zero() + East));
+        assert_eq!(area.positions.of(bot_b), None);
         assert_eq!(area.positions.of(block), Some(Position::zero() + East * 2));
         
         assert_eq!(area.participants_in_waiting.len(), 1);
@@ -302,9 +299,9 @@ mod tests {
     #[test]
     fn command_feedback() {
         let streams = vec![
-            (vec![2, CodeNorth], vec![1, 2]), // died
-            (vec![2, CodeEast], vec![1, 3]), // success
-            (vec![2, CodeWest], vec![1, 4]), // too heavy
+            (vec![2, CODE_NORTH], vec![1, 2]), // died
+            (vec![2, CODE_EAST], vec![1, 3]), // success
+            (vec![2, CODE_WEST], vec![1, 4]), // too heavy
             (vec![1, i8_into_u8(0), i8_into_u8(-1)], vec![1, 6, 0]), // floor
             (vec![1, i8_into_u8(0), i8_into_u8(0)], vec![1, 6, 1]), // bot
             (vec![1, i8_into_u8(-1), i8_into_u8(0)], vec![1, 6, 2]), // wall

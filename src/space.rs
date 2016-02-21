@@ -174,7 +174,7 @@ impl Rectangle {
     
     pub fn contains(self, position: Position) -> bool {
         let mut p = position;
-        let mut bottomright = self.topleft + self.size;
+        let bottomright = self.topleft + self.size;
         if bottomright.x < self.topleft.x {
             p.x -= 1;
         }
