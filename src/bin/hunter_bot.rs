@@ -14,8 +14,8 @@ fn main() {
         Some(arg) => arg,
     };
     
-    let address: SocketAddr = match FromStr::from_str(arg.as_ref()) {
-        Err(AddrParseError(..)) => panic!("Invalid address."),
+    let address: SocketAddr = match FromStr::from_str(&arg) {
+        Err(AddrParseError(..)) => panic!("Invalid address. Expecting format #.#.#.#:#"),
         Ok(address) => address,
     };
     

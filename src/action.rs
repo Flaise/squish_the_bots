@@ -8,6 +8,8 @@ use area::*;
 use entity::*;
 use pushable::*;
 use notification::*;
+use cooldown::*;
+use cooldown::CooldownState::*;
 
 
 #[derive(PartialEq, Debug)]
@@ -117,6 +119,10 @@ impl Area {
     }
     
     fn act(&mut self, bot: Entity) {
+        if self.tick(bot) == Waiting {
+            return;
+        }
+        
         self.notify(bot, Notification::YourTurn);
         
         let command = match self.inputs.of_mut_ref(bot) {
@@ -355,5 +361,47 @@ mod tests {
         area.notify(bot, Notification::YourTurn);
         
         assert_eq!(area.outputs.contents.len(), 0);
+    }
+    
+    #[test]
+    fn cooldown_after_movement() {
+        let mut area = Area::new();
+        
+        let mut position = Position::zero();
+        let bot = make_bot(&mut area, position);
+        area.inputs.attach(bot, Box::new(Cursor::new(vec![
+            2, 1,
+            2, 1,
+            2, 1,
+        ])));
+        
+        for _ in 0..3 {
+            position = position + East;
+            for _ in 0..3 {
+                area.act(bot);
+                assert_eq!(area.positions.of(bot), Some(position));
+            }
+        }
+    }
+    
+    #[test]
+    fn cooldown_after_drilling() {
+        let mut area = Area::new();
+        
+        let mut position = Position::zero();
+        let bot = make_bot(&mut area, position);
+        area.inputs.attach(bot, Box::new(Cursor::new(vec![
+            3, 1,
+            3, 1,
+            3, 1,
+        ])));
+        
+        for _ in 0..3 {
+            position = position + East;
+            for _ in 0..5 {
+                area.act(bot);
+                assert_eq!(area.positions.of(bot), Some(position));
+            }
+        }
     }
 }

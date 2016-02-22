@@ -37,6 +37,7 @@ pub struct Area {
     pub pushables: Components<Pushable>,
     pub inputs: Components<Box<Read>>,
     pub outputs: Components<Box<Write>>,
+    pub cooldowns: Components<u8>,
     pub participants_in_waiting: Vec<(Box<Read>, Box<Write>)>,
     pub entities: Entities,
 }
@@ -48,6 +49,7 @@ impl Area {
             pushables: Components::new(),
             inputs: Components::new(),
             outputs: Components::new(),
+            cooldowns: Components::new(),
             participants_in_waiting: Vec::new(),
             entities: Entities::new(),
         }
@@ -63,9 +65,7 @@ impl Area {
             _ => (), // TODO: change tests to allow debug_unreachable!() here
         }
         
-        self.positions.detach(entity);
-        self.appearances.detach(entity);
-        self.pushables.detach(entity);
+        self.disconnect(entity);
     }
     
     pub fn disconnect(&mut self, entity: Entity) {
@@ -74,6 +74,7 @@ impl Area {
         self.pushables.detach(entity);
         self.inputs.detach(entity);
         self.outputs.detach(entity);
+        self.cooldowns.detach(entity);
     }
 }
 

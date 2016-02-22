@@ -1,6 +1,7 @@
 use space::*;
 use area::*;
 use entity::*;
+use cooldown::*;
 
 
 pub enum DrillResult {
@@ -83,6 +84,7 @@ impl Area {
                 None
             }
             Some(position) => {
+                self.acted(entity, 3);
                 let destination = position + direction;
                 let push_result = self.push(destination, direction);
                 match push_result {
@@ -118,6 +120,7 @@ impl Area {
                 None
             }
             Some(position) => {
+                self.acted(entity, 5);
                 let destination = position + direction;
                 let push_result = self.do_drill(destination);
                 match push_result {
