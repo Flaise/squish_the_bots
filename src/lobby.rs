@@ -33,9 +33,9 @@ pub struct Lobby {
     join_handle: JoinHandle<()>,
 }
 impl Lobby {
-    pub fn new() -> io::Result<Lobby> {
+    pub fn new(delay: Duration) -> io::Result<Lobby> {
         let (sender, receiver) = channel();
-        let join_handle = try!(start_lobby(receiver));
+        let join_handle = try!(start_lobby(receiver, delay));
         
         Ok(Lobby {
             sender: sender,
@@ -53,7 +53,7 @@ impl Lobby {
 }
 
 
-fn start_lobby(receiver: Receiver<Participant>) -> io::Result<JoinHandle<()>> {
+fn start_lobby(receiver: Receiver<Participant>, delay: Duration) -> io::Result<JoinHandle<()>> {
     thread::Builder::new().name("Instance Runner".to_string()).spawn(move|| {
         let mut participants = vec![];
         
@@ -85,7 +85,7 @@ fn start_lobby(receiver: Receiver<Participant>) -> io::Result<JoinHandle<()>> {
             match participants.len() {
                 0 => return,
                 1 => continue,
-                _ => execute_round(&mut participants),
+                _ => execute_round(&mut participants, delay),
             }
         }
     })
@@ -100,13 +100,13 @@ use std::rc::Rc;
 
 #[test]
 fn terminates_when_dropped() {
-    let lobby = Lobby::new().unwrap();
+    let lobby = Lobby::new(Duration::from_millis(0)).unwrap();
     lobby.stop().join().unwrap();
 }
 
 #[test]
 fn waits_for_2_participants() {
-    let lobby = Lobby::new().unwrap();
+    let lobby = Lobby::new(Duration::from_millis(0)).unwrap();
     
     let output_a = Rc::new(RefCell::new(Vec::<u8>::new()));
     let output_b = Rc::new(RefCell::new(Vec::<u8>::new()));
@@ -136,7 +136,7 @@ fn waits_for_2_participants() {
 
 #[test]
 fn waits_after_disconnection() {
-    let lobby = Lobby::new().unwrap();
+    let lobby = Lobby::new(Duration::from_millis(0)).unwrap();
     
     let output_a = Rc::new(RefCell::new(Vec::<u8>::new()));
     let mut shared_a = SharedWrite::new(output_a.clone());

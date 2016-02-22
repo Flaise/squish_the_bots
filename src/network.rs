@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::io::{self, Read, Write, BufReader};
 use std::mem;
 use std::net::*;
@@ -38,6 +39,12 @@ impl Server {
         mem::replace(&mut self.join_handle, None).unwrap()
         // implicitly calls #drop() to stop server thread
     }
+    
+    pub fn join(mut self) -> Result<io::Result<()>, Box<Any+Send+'static>> {
+        let join_handle = mem::replace(&mut self.join_handle, None).unwrap();
+        
+        join_handle.join()
+    }
 }
 impl Drop for Server {
     fn drop(&mut self) {
@@ -73,8 +80,9 @@ fn start<A>(tcp_listener: TcpListener, mut callback: A, stopped: Arc<RwLock<bool
     })
 }
 
-pub fn single_lobby<A: ToSocketAddrs>(address: A, timeout: Duration) -> io::Result<Server> {
-    let mut lobby = try!(Lobby::new());
+pub fn single_lobby<A: ToSocketAddrs>(address: A, timeout: Duration, turn_delay: Duration)
+        -> io::Result<Server> {
+    let mut lobby = try!(Lobby::new(turn_delay));
     
     Server::new(address, move|stream: TcpStream, address: SocketAddr| {
         try!(stream.set_read_timeout(Some(timeout)));
@@ -86,7 +94,7 @@ pub fn single_lobby<A: ToSocketAddrs>(address: A, timeout: Duration) -> io::Resu
             Err(SendError(participant)) => {
                 // Lobby ended because it was empty
                 
-                lobby = try!(Lobby::new());
+                lobby = try!(Lobby::new(turn_delay));
                 if lobby.add(participant).is_err() {
                     // Newly created lobby shouldn't end until after first connection
                     
@@ -130,7 +138,8 @@ fn terminate_implicit() {
 
 #[test]
 fn simple_interaction() {
-    let server = single_lobby("127.0.0.1:0", Duration::from_millis(99999)).unwrap();
+    let server = single_lobby("127.0.0.1:0", Duration::from_millis(99999),
+                              Duration::from_millis(0)).unwrap();
     {
         let addr = server.addr;
         
@@ -171,7 +180,8 @@ fn simple_interaction() {
 
 #[test]
 fn client_timeout() {
-    let server = single_lobby("127.0.0.1:0", Duration::from_millis(50)).unwrap();
+    let server = single_lobby("127.0.0.1:0", Duration::from_millis(50),
+                              Duration::from_millis(0)).unwrap();
     {
         let addr = server.addr;
         

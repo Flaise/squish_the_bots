@@ -1,5 +1,8 @@
 // A simple example bot that goes straight for enemy bots.
 // The only defensive behavior it has is to avoid throwing itself off a ledge.
+// Right now it's not especially bright. For one thing, it gets permanently disoriented when
+// it gets pushed because it does not update its status of a square it thinks is an abyss.
+// It also completely forgets about the presence of another bot when it loses sight of it.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -258,6 +261,9 @@ impl Model {
             Some(Action::Move(direction)) => {
                 let there = self.direction_to_absolute(direction);
                 self.sightings.insert(there, Sighting::heavy(self.time));
+                
+                let there = (there.0 * 2, there.1 * 2);
+                self.sightings.insert(there, Sighting::heavy(self.time));
             },
             _ => panic!(),
         }
@@ -265,107 +271,109 @@ impl Model {
 }
 
 
-pub fn start<A: ToSocketAddrs+Send+'static>(address: A, name: String, logs: bool)
-        -> io::Result<thread::JoinHandle<()>> {
-    let mut model = Model::new();
-    
-    let builder = thread::Builder::new().name(name.clone());
-    
+pub fn run<A: ToSocketAddrs+Send+'static>(address: A, name: String, logs: bool) {
     let log = move|message: &str| {
         if logs {
             println!("{}: {}", name, message);
         }
     };
     
-    builder.spawn(move|| {
-        let mut stream = TcpStream::connect(address).unwrap();
-        
-        log("Connected.");
-        
-        loop {
-            let mut buf = [0; 1];
-            if stream.read(&mut buf).unwrap() != 1 {
-                panic!();
-            }
-            match buf[0] {
-                1 => {
-                    log(&*format!("It's my turn. I am at [{}, {}].", model.here.0, model.here.1));
-                    
-                    let mut view = String::new();
-                    view.push('\n');
-                    for y in -2..3 {
-                        for x in -2..3 {
-                            let y = -y;
-                            if (x, y) == (0, 0) {
-                                view.push('X');
-                                view.push(' ');
-                                continue;
-                            }
-                            match model.at_relative(x, y) {
-                                None => view.push('?'),
-                                Some(Sighting::Floor {..}) => view.push(' '),
-                                Some(Sighting::Abyss) => view.push('0'),
-                                Some(Sighting::Bot {..}) => view.push('!'),
-                                Some(Sighting::Block {..}) => view.push('H'),
-                            }
+    let mut stream = TcpStream::connect(address).unwrap();
+    
+    log("Connected.");
+    
+    let mut model = Model::new();
+    loop {
+        let mut buf = [0; 1];
+        if stream.read(&mut buf).unwrap() != 1 {
+            panic!();
+        }
+        match buf[0] {
+            1 => {
+                log(&*format!("It's my turn. I am at [{}, {}].", model.here.0, model.here.1));
+                
+                let mut view = String::new();
+                view.push('\n');
+                for y in -2..3 {
+                    for x in -2..3 {
+                        let y = -y;
+                        if (x, y) == (0, 0) {
+                            view.push('X');
                             view.push(' ');
+                            continue;
                         }
-                        view.push('\n');
-                    }
-                    log(&*view);
-                    
-                    let action = model.search();
-                    log(&*format!("{}", action));
-                    stream.write_all(&action.serialize()).unwrap();
-                    model.last_action = Some(action);
-                    model.tick();
-                }
-                2 => {
-                    log("Dead.");
-                }
-                3 => {
-                    log("Successful.");
-                    model.success();
-                }
-                4 => {
-                    log("It was too heavy to push.");
-                    model.too_heavy();
-                }
-                5 => {
-                    log("A new round is starting.");
-                    
-                    model = Model::new();
-                }
-                6 => {
-                    if stream.read(&mut buf).unwrap() != 1 {
-                        panic!();
-                    }
-                    
-                    match model.last_action {
-                        Some(Action::LookAt(dx, dy)) => {
-                            let thing = code_to_thing(buf[0]);
-                            if thing.is_none() {
-                                log(&*format!("I don't know what that is. ({})", buf[0]));
-                                panic!();
-                            }
-                            let thing = thing.unwrap();
-                            
-                            log(&*format!("I see a(n) {:?}.", thing));
-                            
-                            model.see(dx, dy, thing);
+                        match model.at_relative(x, y) {
+                            None => view.push('?'),
+                            Some(Sighting::Floor {..}) => view.push(' '),
+                            Some(Sighting::Abyss) => view.push('0'),
+                            Some(Sighting::Bot {..}) => view.push('!'),
+                            Some(Sighting::Block {..}) => view.push('H'),
                         }
-                        _ => {
-                            log("I didn't look at anything.");
-                            panic!();
-                        }
+                        view.push(' ');
                     }
-                    
+                    view.push('\n');
                 }
-                code @ _ => {
-                    log(&*format!("I don't know what the server meant by that. ({})", code));
+                log(&*view);
+                
+                let action = model.search();
+                log(&*format!("{}", action));
+                stream.write_all(&action.serialize()).unwrap();
+                model.last_action = Some(action);
+                model.tick();
+            }
+            2 => {
+                log("Dead.");
+            }
+            3 => {
+                log("Successful.");
+                model.success();
+            }
+            4 => {
+                log("It was too heavy to push.");
+                model.too_heavy();
+            }
+            5 => {
+                log("A new round is starting.");
+                
+                model = Model::new();
+            }
+            6 => {
+                if stream.read(&mut buf).unwrap() != 1 {
                     panic!();
                 }
+                
+                match model.last_action {
+                    Some(Action::LookAt(dx, dy)) => {
+                        let thing = code_to_thing(buf[0]);
+                        if thing.is_none() {
+                            log(&*format!("I don't know what that is. ({})", buf[0]));
+                            panic!();
+                        }
+                        let thing = thing.unwrap();
+                        
+                        log(&*format!("I see a(n) {:?}.", thing));
+                        
+                        model.see(dx, dy, thing);
+                    }
+                    _ => {
+                        log("I didn't look at anything.");
+                        panic!();
+                    }
+                }
+                
+            }
+            code @ _ => {
+                log(&*format!("I don't know what the server meant by that. ({})", code));
+                panic!();
             }
         }
+    }
+}
+
+
+pub fn start<A: ToSocketAddrs+Send+'static>(address: A, name: String, logs: bool)
+        -> io::Result<thread::JoinHandle<()>> {
+    thread::Builder::new().name(name.clone()).spawn(move|| {
+        run(address, name, logs);
     })
 }

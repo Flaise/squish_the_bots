@@ -3,6 +3,7 @@ use std::io::{Read, Write, Cursor};
 use std::iter::Filter;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry::*;
+use std::time::Duration;
 use area::*;
 use space::*;
 use space::Direction::*;
@@ -12,10 +13,10 @@ use notification::*;
 use appearance::*;
 
 
-pub fn execute_round(participants: &mut Vec<(Box<Read>, Box<Write>)>) {
+pub fn execute_round(participants: &mut Vec<(Box<Read>, Box<Write>)>, delay: Duration) {
     let mut area = generate_area(participants.drain(..).collect::<Vec<_>>());
     
-    let winners = area.act_all();
+    let winners = area.act_all(delay);
     // TODO: maybe send win/draw condition notifications
     
     participants.extend(area.extract_io_pairs());
@@ -27,7 +28,7 @@ impl Area {
         let mut readers: HashMap<Entity, Box<Read>> = HashMap::new();
         for (entity, reader) in self.inputs.contents.drain() {
             match readers.entry(entity) {
-                Occupied(entry) => debug_unreachable!(),
+                Occupied(_) => debug_unreachable!(),
                 Vacant(entry) => { entry.insert(reader); },
             };
         }
@@ -41,7 +42,7 @@ impl Area {
         }
         
         let mut result = vec![];
-        for (entity, pair) in pairs {
+        for (_, pair) in pairs {
             result.push(pair);
         }
         for pair in self.participants_in_waiting.drain(..) {
@@ -58,7 +59,7 @@ fn generate_area(participants: Vec<(Box<Read>, Box<Write>)>) -> Area {
     let mut area = Area::new();
     
     let mut rng = thread_rng();
-    let mut limit = rng.gen_range(bounds.area() / 4, bounds.area() * 7 / 8) as usize;
+    let limit = rng.gen_range(bounds.area() / 4, bounds.area() * 7 / 8) as usize;
     
     let mut positions = random_unoccupied_position_list(&area, bounds, limit);
     
@@ -188,7 +189,7 @@ fn single_round_disconnection() {
         (Box::new(Cursor::new([])), Box::new(vec![])), // EoF causes disconnection
     ];
     
-    execute_round(&mut participants);
+    execute_round(&mut participants, Duration::from_millis(0));
     
     assert_eq!(participants.len(), 1);
 }

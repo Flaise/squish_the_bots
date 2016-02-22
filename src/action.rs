@@ -1,5 +1,7 @@
 use std::io::Read;
 use std::mem::transmute;
+use std::thread;
+use std::time::Duration;
 use space::*;
 use space::Direction::*;
 use area::*;
@@ -168,13 +170,15 @@ impl Area {
     }
     
     // Returns the winners of the round
-    pub fn act_all(&mut self) -> Vec<Entity> {
+    pub fn act_all(&mut self, delay: Duration) -> Vec<Entity> {
         loop {
             let entities = self.all_actors();
             if entities.len() <= 1 {
                 return entities;
             }
             self.act_vec(entities);
+            
+            thread::sleep(delay);
         }
     }
 }
@@ -189,6 +193,7 @@ mod tests {
     use std::io::Cursor;
     use std::rc::Rc;
     use std::cell::RefCell;
+    use std::time::Duration;
     use area::*;
     use notification::*;
     
@@ -290,7 +295,7 @@ mod tests {
         let entities = area.all_actors();
         assert_eq!(entities, &[bot_a, bot_b]);
         
-        let winners = area.act_all();
+        let winners = area.act_all(Duration::from_millis(0));
         assert_eq!(winners, &[bot_a]);
         
         let entities = area.all_actors();

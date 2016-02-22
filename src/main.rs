@@ -23,14 +23,14 @@ mod example_bots;
 
 
 use std::time::Duration;
-use std::thread;
 use network::*;
 use example_bots::hunter;
 
 fn main() {
-    let server = single_lobby("127.0.0.1:0", Duration::from_millis(50)).unwrap();
+    let server = single_lobby("127.0.0.1:0", Duration::from_millis(50),
+                              Duration::from_millis(450)).unwrap();
     
-    let handle2 = hunter::start(server.addr, "Bot A".to_string(), true).unwrap();
+    println!("Waiting for connections to {:?}", server.addr);
     
-    hunter::start(server.addr, "Bot B".to_string(), false).unwrap().join().unwrap();
+    server.join().unwrap().unwrap();
 }

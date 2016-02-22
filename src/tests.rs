@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use std::io::{self, Write, Cursor, ErrorKind};
+use std::io::{self, Write, ErrorKind};
 use std::rc::Rc;
 use std::cell::RefCell;
 
