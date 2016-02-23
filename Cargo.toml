@@ -2,6 +2,9 @@
 name = "squish_the_bots"
 version = "0.1.0"
 authors = ["Flaise <x.Flaise@gmail.com>"]
+publish = false
 
 [dependencies]
 rand = "0.3.13"
+hyper = "0.7.2"
+getopts = "0.2.14"

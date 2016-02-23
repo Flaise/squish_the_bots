@@ -1,6 +1,8 @@
 #![deny(unused_must_use)]
 
 extern crate rand;
+extern crate hyper;
+extern crate getopts;
 
 #[macro_use]
 mod macros;
@@ -28,23 +30,64 @@ use std::net::{AddrParseError, SocketAddr};
 use std::str::FromStr;
 use std::time::Duration;
 use network::*;
-use example_bots::hunter;
+use getopts::Options;
+use hyper::server::{Request, Response};
+use hyper::status::StatusCode;
+use hyper::header::{ContentType};
+use hyper::mime::{Mime, TopLevel, SubLevel};
+
 
 fn main() {
-    let port = match env::args().nth(1) {
-        None => "0".to_string(),
-        Some(arg) => arg,
+    let mut args = env::args();
+    let program = args.next().unwrap();
+    let args = args.collect::<Vec<_>>();
+    
+    let mut options = Options::new();
+    options.reqopt("w", "web", "Port to accept HTTP requests on", "PORT");
+    options.reqopt("s", "simulation", "Port to accept bot socket connections on", "PORT");
+    
+    let matches = match options.parse(&args) {
+        Ok(result) => result,
+        Err(_) => {
+            println!("{}", options.usage(&*options.short_usage(&*program)));
+            return;
+        }
     };
     
-    let address: SocketAddr = match FromStr::from_str(&("127.0.0.1:".to_string() + &port)) {
-        Err(AddrParseError(..)) => panic!("Invalid port."),
-        Ok(address) => address,
-    };
+    let web_port = matches.opt_str("web").unwrap();
+    let sim_port = matches.opt_str("simulation").unwrap();
     
-    let server = single_lobby(address, Duration::from_millis(50),
-                              Duration::from_millis(450)).unwrap();
+    let web_address: SocketAddr =
+        match FromStr::from_str(&("127.0.0.1:".to_string() + &web_port)) {
+            Err(AddrParseError(..)) => panic!("Invalid web port."),
+            Ok(address) => address,
+        };
     
-    println!("Waiting for connections to {:?}", server.addr);
+    let sim_address: SocketAddr =
+        match FromStr::from_str(&("127.0.0.1:".to_string() + &sim_port)) {
+            Err(AddrParseError(..)) => panic!("Invalid simulation port."),
+            Ok(address) => address,
+        };
     
-    server.join().unwrap().unwrap();
+    let simulation = single_lobby(sim_address, Duration::from_millis(2000),
+                                  Duration::from_millis(450)).unwrap();
+    println!("Waiting for simulation socket connections on {}", simulation.addr);
+    
+    let web_server = hyper::Server::http(web_address).unwrap().handle(handler).unwrap();
+    println!("Waiting for HTTP requests on {}", web_server.socket);
+    
+    simulation.join().unwrap().unwrap();
+}
+
+// Rust doesn't allow types with destructors as constants.
+// See https://github.com/rust-lang/rfcs/issues/913
+// const text_html: ContentType = ContentType(Mime(TopLevel::Text, SubLevel::Html, vec![]));
+
+fn handler(_: Request, mut res: Response) {
+    {
+        let mut status = res.status_mut();
+        *status = StatusCode::Ok;
+    }
+    res.headers_mut().set(ContentType(Mime(TopLevel::Text, SubLevel::Html, vec![])));
+    res.send(include_bytes!("../bot_development.html")).unwrap();
 }

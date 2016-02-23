@@ -1,3 +1,36 @@
+<style>
+body {
+    background-color: #e0dbd8;
+    color: #222;
+    font-family: Verdana, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+}
+code {
+    background-color: #f0f0f0;
+}
+#techspecs {
+    background-color: #d0d0d4;
+    padding: 1em;
+}
+h1,h2,h3 {
+    width: 100%;
+    background-color: #aaa;
+    color: #eee;
+    text-shadow: 1px 1px 0 #666;
+    padding-left: .5em;
+    padding-top: .2em;
+    padding-bottom: .2em;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+.fine {
+    font-size: 2px;
+}
+</style>
+
+<title>Squish the Bots</title>
+
 <h1>Squish the Bots</h1>
 
 This is how programmers arm-wrestle.
@@ -28,10 +61,115 @@ statistical and have margins of error. Einstein believed that the
 universe was a deterministic place and so the way quantum mechanics works was frustrating to him.
 I have found Einstein's determinism.
 
+<h2>About This Project</h2>
+
+<a href="https://github.com/Flaise/squish_the_bots">Source Code</a>
+- It's open source. Feel free to study/copy/whatever.
+<br><br>
+It took a little under a month to make, using free time left over after a full-time job and the
+sporadic social event and gaming.
+
+<h3>Why Make It?</h3>
+
+The answer to this requires a bit of background.
+<br><br>
+Javascript is a deadly disease that will metastasize and take over anything it touches. Before I
+started this project, I was working with Javascript full time professionally while in my free time
+I was doing my own projects with Javascript. I spent long hours building things out of such feats
+of engineering as
+<ul>
+<li><code>null</code> and <code>undefined</code></li>
+<li><code>isNaN([])</code> -> <code>false</code></li>
+<li><code>isNaN("")</code> -> <code>false</code></li>
+<li><code>null == 0</code> -> <code>false</code></li>
+<li><code>null > 0</code> -> <code>false</code></li>
+<li><code>null >= 0</code> -> <code>true</code></li>
+<li><code>Array(5)</code> -> <code>[ , , , ,  ]</code></li>
+<li><code>Array(5, 5)</code> -> <code>[ 5, 5 ]</code></li>
+<li><code>['10', '10', '10', '10'].map(parseInt)</code> -> <code>[ 10, NaN, 2, 3 ]</code>
+<br>(Yes, I understand that parseInt is consuming 2 parameters but it's being given 3 and not
+complaining and instead of failing for a base of 1, it swallows the error and gives a result that
+is mathematical nonsense.)
+</li>
+<li><code>typeof null</code> -> <code>'object'</code></li>
+<li><code>'5' < 7</code> -> <code>true</code></li>
+<li><code>'5' + 7</code> -> <code>'57'</code></li>
+<li><code>[] == ''</code> -> <code>true</code></li>
+<li>Implicit <code>this</code> argument in non-member functions.</li>
+<li><code>9007199254740992 === 9007199254740992 + 1</code> -> <code>true</code></li>
+<li>Implicit global variable declaration in the absence of the <code>var</code> keyword.</li>
+<li>A <code>new</code> operator.
+<br>(Why it's in this list is more than I want to write here but do note that Python has no
+<code>new</code> operator and you don't hear many complaints about its absence.)</li>
+</ul>
+
+Drinking Javascript all day and all night was giving me liver damage. I needed to detox. I needed
+to do something where I didn't feel like I was being asked or asking myself to make grown-up
+things out of toys. I chose to make a simulation for AIs in Rust because the scope of the project
+is fairly small - there's hardly any front-end - and because Rust's static analysis lets me
+concentrate on the actual fundamental problems I'm trying to solve instead of problems created
+(or ignored) by the tools I use.
+
+<h3>But why make anything? Why not take a break?</h3>
+
+I don't know.
+
+<h3>Thoughts About Rust</h3>
+
+<h4>The Good</h4>
+
+<ul>
+<li>Object life cycles are simple - because deallocation is deterministic and ownership is built
+into the type system, there is no need for most objects to have internal finite state machines.
+When you're done with an object, you either let it go out of scope or explicitly drop it and it
+performs any necessary cleanup once and only once. No runtime errors, no runtime performance
+hit.</li>
+<li>The type system detects when you attempt to modify a collection while iterating over it, which
+is mildly amazing. There are cases where the Rust compiler will flag code as being unsafe when it
+actually is safe but the rewrites are no less clear than these cases and it's preferable to have
+an automated type checker verifying these things than to have code look more compact and neat for
+the benefit of a coder who is going to make mistakes.</li>
+<li>For the most part, I did not have to modify code after I had written it. The only exceptions
+were when I needed to alter an API because I had learned more about the requirements of the code
+and when a function I'd used was nondeterministic with respect to the call site. It's difficult to
+write unit tests for procedural generation, networking, and AI. Everything else was no hassle to
+debug and test.</li>
+</ul>
+
+<h4>The Bad</h4>
+
+<ul>
+<li>No supported way to compile to Native Client, WebAssembly, or asm.js. If I want to write a web
+app, either I write the tools myself or I use C++ or Javascript.</li>
+<li>Tenuous support for things I expect to see in a standard library.
+<a href="https://github.com/rust-lang/rust/issues/31615">Learn how to do it in C</a>, they say as
+they close the issue.</li>
+<li>Very few jobs involving Rust are available right now.</li>
+<li>The library ecosystem is new and therefore sparse. Not to mention how the documentation is...
+about the same as the documentation in every programming language's ecosystem.
+<a href="https://i.imgur.com/FFmFzxJ.jpg" target="_blank">Programmers are lazy.</a>
+<span class="fine">And frequently bad at grammar*.</span>
+</ul>
+
+<div id="techspecs">
+
 <h2>The Rules - for software</h2>
 
 Write an app that connects to the server via a socket and uses the stream of bytes coming out of
-the server to decide what stream of bytes to send in. The address is currently _________. You are
+the server to decide what stream of bytes to send in. The address is currently
+
+<b><span id="domain">the domain of this web page on port </span>#####</b>.
+
+<script>
+var name = window.location.host || window.location.hostname
+
+if(name) {
+    var domain = document.getElementById('domain')
+    domain.textContent = name.split(':')[0] + ':'
+}
+</script>
+
+You are
 advised to make your app read the command line arguments so that if the server address changes,
 you will not have to modify (and possibly recompile) your source code.
 <br><br>
@@ -46,43 +184,161 @@ bot's code is stable before having it compete.
 
 <h3>Input</h3>
 
+To send a command to the server, wait until it sends the <code>Your-Turn</code> message and then
+send one byte for the message you want to send back, followed by one byte for each parameter of
+the message, if any. If you send a message when it is not your turn, the message will be buffered
+and only executed when it becomes your turn. The message will then be premised by old information
+and therefore may be a sub-optimal course of action. The server won't care much but you should;
+don't send messages until it's your turn.
+
+<blockquote>
 <h4>Look At</h4>
-To look at a location, send the following data to the server:<br>
-- [1] as an unsigned byte<br>
-- The east-west position of the position you want to examine, relative to your bot's current
-position, as signed byte. Positive values are to the east and negative values are to the west.<br>
-- The north-south position of the position you want to examine, relative to your bot's current
-position, as signed byte. Positive values are to the north and negative values are to the
-south.<br>
+To look at a location, send the following data to the server in this order:
+<ul>
+<li><code>1</code></li>
+<li>The east-west position of the position you want to examine, relative to your bot's current
+position, as a signed byte. Positive values are to the east and negative values are to the west.
+</li>
+<li>The north-south position of the position you want to examine, relative to your bot's current
+position, as a signed byte. Positive values are to the north and negative values are to the
+south.</li>
+</ul>
 
-The output will be one of the following:
-
-<!--TODO-->
-
+For example, if you want to know what is immediately to the northwest, send:
+<code>[1,&nbsp;-1,&nbsp;1]</code>. The result will be a <code>You-See</code> message, as described
+below.
+<br><br>
 The laws of physics make it impossible to observe any event happening outside of a 256x256 square.
 This I/O protocol has therefore been designed so that only a single byte is used for each
 coordinate.
 
+<h4>Move</h4>
+To move, send the following data in this order:
+<ul>
+<li><code>2</code></li>
+<li>One of the following:
+    <ul>
+    <li><code>0</code> (North)</li>
+    <li><code>1</code> (East)</li>
+    <li><code>2</code> (South)</li>
+    <li><code>3</code> (West)</li>
+    </ul>
+</li>
+</ul>
+The result will either be a <code>Success</code> or <code>Too-Heavy</code> message, as described
+below. If your bot moves off a ledge into an abyss, you will receive a <code>You-Died</code>
+message even though the movement was technically successful.
+<br><br>
+Movement moves your bot one square in the direction you specify, pushing light objects that are in
+the way in the same direction. Two blocks in a row are too heavy to push. Pushing a bot against a
+block squishes the bot and leaves the block still. A move takes 3 "ticks". You can use the
+<code>Look-At</code> command 3 times in the same amount of time as a single <code>Move</code>
+command.
+<br><br>
+The laws of physics limit motion to one axis at a time so this protocol has been designed such
+that there are only 4 degrees in a circle. A compass in the world the bots live in draws a shape
+that looks like a square but is really a circle.
+
+<h4>Drill</h4>
+To drill, send the following data in this order:
+<ul>
+<li><code>2</code></li>
+<li>One of the following:
+    <ul>
+    <li><code>0</code> (North)</li>
+    <li><code>1</code> (East)</li>
+    <li><code>2</code> (South)</li>
+    <li><code>3</code> (West)</li>
+    </ul>
+</li>
+</ul>
+The result will either be a <code>Success</code> or <code>Too-Heavy</code> message, as described
+below. If your bot moves off a ledge into an abyss, you will receive a <code>You-Died</code>
+message even though the movement was technically successful.
+<br><br>
+Drilling is the same as movement (above) except that it takes 5 ticks to complete and if there was
+any object in the way, even one too heavy to push, it is destroyed.
+<br><br>
+No, you can't drill an abyss. You fall in, just like when you move. Do you really have to ask?
+
+</blockquote>
+
 <h3>Output</h3>
 
+The server sends messages basically the same way you do, with a sequence of bytes. Most server
+messages are only one byte long, though.
 
-<h2>About the project</h2>
+<blockquote>
+<h4>Your Turn</h4>
+Code <code>1</code>. This means that (unless you sent a message preemptively), the server is
+waiting for you to send it a message. Your message must arrive at the server within 2 seconds or
+the server will drop your connection and you will lose the round. You can't precisely pass your
+turn, although you can effectively do so by looking at the position [0, 0] (your current
+position.) That will always tell you information you already knew. For CPU-intensive bots, it is
+advised to keep track of the best calculated action so far and when out of time, send whichever
+message that is.
 
-<h3>Thoughts about Rust</h3>
+<h4>You Died</h4>
+Code <code>2</code>. This message is sent when your bot has fallen into an abyss, gotten drilled,
+or gotten squished between a block and a hard place.
+
+<h4>Success</h4>
+Code <code>3</code>. This message is sent after you send a <code>Move</code> or <code>Drill</code>
+command and you entered the specified square successfully. If you moved, anything that was in the
+way either got pushed out of the way or was squished. If you drilled, anything that was in the way
+just isn't there anymore.
+
+<h4>Too Heavy</h4>
+Code <code>4</code>. This message is sent when you try to enter a square containing a block that
+also has another block on the other side. Bots are not strong enough to push 2 blocks at the same
+time.
+
+<h4>New Round</h4>
+Code <code>5</code>. This message is sent when the map is re-generated and your data about the
+environment has to be recalculated from scratch.
+
+<h4>You See</h4>
+After you send a <code>Look-At</code> message, the server will respond with the following:
 
 <ul>
-<li>Object life cycles are simple - because deallocation is deterministic and ownership is built
-into the type system, there is no need for most objects to have internal finite state machines.
-When you're done with an object, you either let it go out of scope or explicitly drop it and it
-performs any necessary cleanup once and only once.</li>
-<li>The type system detects when you attempt to modify a collection while iterating over it, which
-is mildly amazing. There are cases where the Rust compiler will flag code as being unsafe when it
-actually is safe but the rewrites are no less clear than these cases and it's preferable to have
-an automated type checker verifying these things than to have code look more compact and neat for
-the benefit of a coder who is going to make mistakes.</li>
-<li>For the most part, I did not have to modify code after I had written it. The only exceptions
-were when I needed to alter an API because I had learned more about the requirements of the code
-and when a function I'd used was nondeterministic with respect to the call site. It's difficult to
-write unit tests for procedural generation, networking, and AI. Everything else was no hassle to
-debug and test.</li>
+<li><code>6</code></li>
+<li>
+    One of the following:
+    <ul>
+    <li><code>0</code> (floor)</li>
+    <li><code>1</code> (bot)</li>
+    <li><code>2</code> (block)</li>
+    <li><code>3</code> (abyss)</li>
+    </ul>
+</li>
 </ul>
+
+There is only ever one object in a square; i.e. the presence of a bot precludes a block.
+</blockquote>
+
+</div>
+
+<h2>About the Developer</h2>
+
+I am a video game developer who writes software people actually pay for for a living.
+
+<ul>
+<li><a href="https://github.com/Flaise">Github Profile</a></li>
+
+<li><span id="email"><small>(Email address hidden. Enable Javascript.)</small></span></li>
+<script>
+var email = document.getElementById('email')
+email.innerHTML =
+    '<a href="mailto:' +
+    [['x'], ['F','l','a','i','s','e','@','g','m','a','i','l'], ['c','o','m']]
+        .map(function(a) {return a.join('')}).join('.') +
+    '">Email</a>'
+// Yes, I know this won't work on sophisticated spambots.
+</script>
+
+<li><a href="http://battlement.net/">Battlement</a> - A team-oriented tactical war game.</li>
+<li><a href="https://bitbucket.org/Flaise/squish-the-bugs/downloads">Squish the Bugs</a>
+- A game with graphics and gravity. And squishing.</li>
+</ul>
+
+<p class="fine">* Don't think I don't know it doesn't matter that much. Sheesh.</p>
