@@ -65,7 +65,10 @@ fn generate_area(participants: Vec<(Box<Read>, Box<Write>)>) -> Area {
     
     for (reader, writer) in participants {
         match positions.pop() {
-            None => debug_unreachable!(break),
+            None => {
+                debug_unreachable!();
+                break;
+            }
             Some(position) => {
                 let bot = make_bot(&mut area, position);
                 

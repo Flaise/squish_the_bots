@@ -67,7 +67,10 @@ fn start<A>(tcp_listener: TcpListener, mut callback: A, stopped: Arc<RwLock<bool
             let (stream, address) = try!(tcp_listener.accept());
             
             match stopped.read() {
-                Err(_) => debug_unreachable!(return),
+                Err(_) => {
+                    debug_unreachable!();
+                    return Ok(());
+                }
                 Ok(value) => {
                     if *value {
                         return Ok(());

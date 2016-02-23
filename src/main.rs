@@ -73,7 +73,13 @@ fn main() {
                                   Duration::from_millis(450)).unwrap();
     println!("Waiting for simulation socket connections on {}", simulation.addr);
     
-    let web_server = hyper::Server::http(web_address).unwrap().handle(handler).unwrap();
+    let index_page = include_str!("./index.html");
+    let index_page = index_page.replace("#####", simulation.addr.port().to_string().as_ref());
+    
+    let web_server = hyper::Server::http(web_address).unwrap()
+        .handle(move|req: Request, res: Response| {
+            handler(req, res, &index_page)
+        }).unwrap();
     println!("Waiting for HTTP requests on {}", web_server.socket);
     
     simulation.join().unwrap().unwrap();
@@ -83,11 +89,11 @@ fn main() {
 // See https://github.com/rust-lang/rfcs/issues/913
 // const text_html: ContentType = ContentType(Mime(TopLevel::Text, SubLevel::Html, vec![]));
 
-fn handler(_: Request, mut res: Response) {
+fn handler(_: Request, mut res: Response, index_page: &str) {
     {
         let mut status = res.status_mut();
         *status = StatusCode::Ok;
     }
     res.headers_mut().set(ContentType(Mime(TopLevel::Text, SubLevel::Html, vec![])));
-    res.send(include_bytes!("../bot_development.html")).unwrap();
+    res.send(index_page.as_ref()).unwrap();
 }

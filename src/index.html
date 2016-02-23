@@ -15,7 +15,7 @@ code {
 }
 h1,h2,h3 {
     width: 100%;
-    background-color: #aaa;
+    background-color: #b0b0b0;
     color: #eee;
     text-shadow: 1px 1px 0 #666;
     padding-left: .5em;
@@ -23,6 +23,9 @@ h1,h2,h3 {
     padding-bottom: .2em;
     border-top-left-radius: 5px;
     border-top-right-radius: 5px;
+    border-top: 1px #888 solid;
+    border-right: 2px #777 solid;
+    box-sizing: border-box;
 }
 .fine {
     font-size: 2px;
@@ -63,11 +66,11 @@ I have found Einstein's determinism.
 
 <h2>About This Project</h2>
 
-<a href="https://github.com/Flaise/squish_the_bots">Source Code</a>
+<a href="https://github.com/Flaise/squish_the_bots" target="_blank">Source Code</a>
 - It's open source. Feel free to study/copy/whatever.
 <br><br>
 It took a little under a month to make, using free time left over after a full-time job and the
-sporadic social event and gaming.
+sporadic social event and gaming session.
 
 <h3>Why Make It?</h3>
 
@@ -84,7 +87,7 @@ of engineering as
 <li><code>null == 0</code> -> <code>false</code></li>
 <li><code>null > 0</code> -> <code>false</code></li>
 <li><code>null >= 0</code> -> <code>true</code></li>
-<li><code>Array(5)</code> -> <code>[ , , , ,  ]</code></li>
+<li><code>Array(5)</code> -> <code>[ , , , , &nbsp;]</code></li>
 <li><code>Array(5, 5)</code> -> <code>[ 5, 5 ]</code></li>
 <li><code>['10', '10', '10', '10'].map(parseInt)</code> -> <code>[ 10, NaN, 2, 3 ]</code>
 <br>(Yes, I understand that parseInt is consuming 2 parameters but it's being given 3 and not
@@ -142,8 +145,8 @@ debug and test.</li>
 <li>No supported way to compile to Native Client, WebAssembly, or asm.js. If I want to write a web
 app, either I write the tools myself or I use C++ or Javascript.</li>
 <li>Tenuous support for things I expect to see in a standard library.
-<a href="https://github.com/rust-lang/rust/issues/31615">Learn how to do it in C</a>, they say as
-they close the issue.</li>
+<a href="https://github.com/rust-lang/rust/issues/31615" target="_blank">
+"Learn how to do it in C"</a>, they say as they close the issue.</li>
 <li>Very few jobs involving Rust are available right now.</li>
 <li>The library ecosystem is new and therefore sparse. Not to mention how the documentation is...
 about the same as the documentation in every programming language's ecosystem.
@@ -153,7 +156,7 @@ about the same as the documentation in every programming language's ecosystem.
 
 <div id="techspecs">
 
-<h2>The Rules - for software</h2>
+<h2>How to Arm Wrestle</h2>
 
 Write an app that connects to the server via a socket and uses the stream of bytes coming out of
 the server to decide what stream of bytes to send in. The address is currently
@@ -252,11 +255,7 @@ To drill, send the following data in this order:
     </ul>
 </li>
 </ul>
-The result will either be a <code>Success</code> or <code>Too-Heavy</code> message, as described
-below. If your bot moves off a ledge into an abyss, you will receive a <code>You-Died</code>
-message even though the movement was technically successful.
-<br><br>
-Drilling is the same as movement (above) except that it takes 5 ticks to complete and if there was
+Drilling is the same as movement (above) except that it takes 5 ticks to complete and if there is
 any object in the way, even one too heavy to push, it is destroyed.
 <br><br>
 No, you can't drill an abyss. You fall in, just like when you move. Do you really have to ask?
@@ -274,7 +273,7 @@ Code <code>1</code>. This means that (unless you sent a message preemptively), t
 waiting for you to send it a message. Your message must arrive at the server within 2 seconds or
 the server will drop your connection and you will lose the round. You can't precisely pass your
 turn, although you can effectively do so by looking at the position [0, 0] (your current
-position.) That will always tell you information you already knew. For CPU-intensive bots, it is
+position). That will always tell you information you already knew. For CPU-intensive bots, it is
 advised to keep track of the best calculated action so far and when out of time, send whichever
 message that is.
 
@@ -336,9 +335,20 @@ email.innerHTML =
 // Yes, I know this won't work on sophisticated spambots.
 </script>
 
-<li><a href="http://battlement.net/">Battlement</a> - A team-oriented tactical war game.</li>
+<li><a href="http://battlement.net/">Battlement</a>
+<small> - A team-oriented tactical war game.</small></li>
 <li><a href="https://bitbucket.org/Flaise/squish-the-bugs/downloads">Squish the Bugs</a>
-- A game with graphics and gravity. And squishing.</li>
+<small>
+- There are
+<a href="http://www.si.edu/Encyclopedia_SI/nmnh/buginfo/bugnos.htm" target="_blank">
+10,000,000,000,000,000,000</a> insects on this planet.
+That is roughly
+<a href="https://www.wolframalpha.com/input/?i=10+quintillion+%2F+USA+federal+debt"
+    target="_blank">
+551,000 times as much as the United States owes</a>.
+Seeing as we don't miss those dollars, clearly no one will will care if you squish a few bugs.
+</small>
+</li>
 </ul>
 
 <p class="fine">* Don't think I don't know it doesn't matter that much. Sheesh.</p>

@@ -133,7 +133,10 @@ impl Area {
         match command {
             Command::LookAt(offset) => {
                 let here = match self.positions.of(bot) {
-                    None => debug_unreachable!(return),
+                    None => {
+                        debug_unreachable!();
+                        return;
+                    }
                     Some(here) => here,
                 };
                 let notification = Notification::YouSee(self.appearance_at(here + offset));

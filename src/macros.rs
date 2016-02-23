@@ -5,12 +5,6 @@ macro_rules! debug_unreachable {
     () => {
         unreachable!()
     };
-    (return) => {
-        unreachable!()
-    };
-    (break) => {
-        unreachable!()
-    };
 }
 
 #[cfg(not(debug_assertions))]
@@ -18,12 +12,6 @@ macro_rules! debug_unreachable {
 macro_rules! debug_unreachable {
     () => {
         ()
-    };
-    (return) => {
-        return
-    };
-    (break) => {
-        break
     };
 }
 
