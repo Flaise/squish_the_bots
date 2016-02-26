@@ -60,13 +60,13 @@ fn main() {
     let sim_port = matches.opt_str("simulation").unwrap();
     
     let web_address: SocketAddr =
-        match FromStr::from_str(&("127.0.0.1:".to_string() + &web_port)) {
+        match FromStr::from_str(&("0.0.0.0:".to_string() + &web_port)) {
             Err(AddrParseError(..)) => panic!("Invalid web port."),
             Ok(address) => address,
         };
     
     let sim_address: SocketAddr =
-        match FromStr::from_str(&("127.0.0.1:".to_string() + &sim_port)) {
+        match FromStr::from_str(&("0.0.0.0:".to_string() + &sim_port)) {
             Err(AddrParseError(..)) => panic!("Invalid simulation port."),
             Ok(address) => address,
         };
