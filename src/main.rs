@@ -45,6 +45,8 @@ fn main() {
     let mut options = Options::new();
     options.reqopt("w", "web", "Port to accept HTTP requests on", "PORT");
     options.reqopt("s", "simulation", "Port to accept bot socket connections on", "PORT");
+    options.optopt("e", "simulation-external",
+                   "External port of simulation, if different than internal.", "PORT");
     
     let matches = match options.parse(&args) {
         Ok(result) => result,
@@ -73,8 +75,12 @@ fn main() {
                                   Duration::from_millis(450)).unwrap();
     println!("Waiting for simulation socket connections on {}", simulation.addr);
     
+    
+    let external_port = matches.opt_str("simulation-external")
+                               .unwrap_or(simulation.addr.port().to_string());
+    
     let index_page = include_str!("./index.html");
-    let index_page = index_page.replace("#####", simulation.addr.port().to_string().as_ref());
+    let index_page = index_page.replace("#####", &*external_port);
     
     let web_server = hyper::Server::http(web_address).unwrap()
         .handle(move|req: Request, res: Response| {

@@ -1,8 +1,7 @@
 extern crate squish_the_bots;
 
 use std::env;
-use std::net::{AddrParseError, SocketAddr};
-use std::str::FromStr;
+use std::net::{SocketAddr, ToSocketAddrs};
 
 use squish_the_bots::example_bots::hunter;
 
@@ -14,9 +13,9 @@ fn main() {
         Some(arg) => arg,
     };
     
-    let address: SocketAddr = match FromStr::from_str(&arg) {
-        Err(AddrParseError(..)) => panic!("Invalid address. Expecting format #.#.#.#:#"),
-        Ok(address) => address,
+    let address: SocketAddr = match arg.to_socket_addrs() {
+        Err(..) => panic!("Invalid address. Expecting format #.#.#.#:# or domain:#"),
+        Ok(mut iterator) => iterator.next().unwrap(),
     };
     
     hunter::run(address, "Hunter Bot".to_string(), true);
