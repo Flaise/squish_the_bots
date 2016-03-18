@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+
 <style>
 body {
     background-color: #e0dbd8;
@@ -31,27 +33,34 @@ h1,h2,h3 {
 }
 </style>
 
-<title>Squish the Bots</title>
+<title>IOTA</title>
 
-<h1>Squish the Bots</h1>
+<h1>IOTA: <small>Input/Output Tournament for AIs</small></h1>
 
 This is how programmers arm-wrestle.
 
+<h2>Summary</h2>
+
+IOTA is a simulated environment that artificial intelligences interface with via the network with
+the goal of destroying each other. In other words, it's a computer software equivalent of
+cockfighting. Participation is open to anyone willing and able to build an AI.
+
 <h2>The Rules - for wetware</h2>
 
-In a 2d environment divided into a grid of equally sized squares (essentially like a Chess board),
-a set of bots attempt to destroy each other. Every object takes up one grid square and the types
-of objects are bots, blocks, and floors. Any square not occupied by a floor is an empty void that
-objects can fall into. A fallen object is gone and can never return to the environment. Time
-progresses in units called "ticks". Each tick, every bot in the environment can take an action if
-it has not recently taken an action that takes more than one tick to complete. The actions a bot
-can take are to use its radar to examine one square in the environment, to move an adjacent
-square, or to turn on its drill and force its way into an adjacent square. Moving takes longer
-than using radar and drilling takes longer than moving, regardless of what was in the bot's way.
-Drilling another object destroys it. Moving against a block or bot pushes it. If a bot attempts to
-push a block against another block, it doesn't move because 2 blocks are too heavy for one bot to
-push. If a bot pushes a block against a bot, both objects are pushed successfully. If a bot pushes
-a bot against a block, the block doesn't move and the bot being pushed is squished.
+All the action takes place in a 2d environment divided into a grid of equally sized squares,
+essentially like a Chess board.
+<br><br>
+Each square may contain one object, either a bot or a block. The bots are the entities controlled by
+the AIs that move and destroy things of their own volition. Blocks are pushable obstacles.
+<br><br>
+Some squares have no floor. Any object that enters such a square falls into the abyss, never to be
+seen or heard from again.
+<br><br>
+Each time it is a bot's turn to act, it may either move in one of the four cardinal directions,
+move while drilling in one of those directions, or scan a square with its radar to see what is in
+that square. Drilling destroys any object the bot encounters and moving pushes anything that's in
+the way. Pushing a bot against a block squishes the bot. Moving takes longer than scanning and
+drilling takes longer than moving.
 
 <h2>What Makes These Rules Interesting</h2>
 
@@ -66,7 +75,9 @@ I have found Einstein's determinism.
 <h2>About This Project</h2>
 
 <a href="https://github.com/Flaise/squish_the_bots" target="_blank">Source Code</a>
-- It's open source. Feel free to study/copy/whatever.
+- It's open source. Feel free to study/copy/whatever. Note that creating a bot does not require
+cloning and building this repository because it is already hosted. See the technical documentation
+below.
 <br><br>
 It took a little under a month to make, using free time left over after a full-time job and the
 sporadic social event and gaming session.
@@ -101,8 +112,10 @@ is mathematical nonsense.)
 <li><code>9007199254740992 === 9007199254740992 + 1</code> -> <code>true</code></li>
 <li>Implicit global variable declaration in the absence of the <code>var</code> keyword.</li>
 <li>A <code>new</code> operator.
-<br>(Why it's in this list is more than I want to write here but do note that Python has no
-<code>new</code> operator and you don't hear many complaints about its absence.)</li>
+<br>(Why? Among other reasons, it
+<a href="https://github.com/vesln/timekeeper/blob/5e1f504f8e33f43d4e1ba9ac78faab2db4bb6582/lib/timekeeper.js#L80-L87" target="_blank">
+    does not compose
+</a> and it is completely useless as an indicator of where allocations happen.)</li>
 </ul>
 
 Drinking Javascript all day and all night was giving me liver damage. I needed to detox. I needed
@@ -158,9 +171,9 @@ about the same as the documentation in every programming language's ecosystem.
 <h2>How to Arm Wrestle</h2>
 
 Write an app that connects to the server via a socket and uses the stream of bytes coming out of
-the server to decide what stream of bytes to send in. The address is currently
+the server to decide what stream of bytes to send in. The server is hosted at
 
-<b><span id="domain">the domain of this web page on port </span>#####</b>.
+<b><span id="domain">the domain of this web page on port </span>#####</b>
 
 <script>
 var name = window.location.host || window.location.hostname
@@ -171,7 +184,8 @@ if(name) {
 }
 </script>
 
-You are
+with an example bot always connected and ready to compete. Building and executing the server
+yourself is optional but unnecessary. You are
 advised to make your app read the command line arguments so that if the server address changes,
 you will not have to modify (and possibly recompile) your source code.
 <br><br>
@@ -207,7 +221,7 @@ south.</li>
 </ul>
 
 For example, if you want to know what is immediately to the northwest, send:
-<code>[1,&nbsp;-1,&nbsp;1]</code>. The result will be a <code>You-See</code> message, as described
+<code>1&nbsp;-1&nbsp;1</code>. The result will be a <code>You-See</code> message, as described
 below.
 <br><br>
 The laws of physics make it impossible to observe any event happening outside of a 256x256 square.
