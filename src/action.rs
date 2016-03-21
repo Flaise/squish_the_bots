@@ -216,22 +216,22 @@ mod tests {
         let mut commands = Cursor::new([
             1, i8_into_u8(0i8), i8_into_u8(0i8)
         ]);
-        assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::zero()));
+        assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::default()));
         
         let mut commands = Cursor::new([
             1, i8_into_u8(1i8), i8_into_u8(0i8)
         ]);
-        assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::zero() + East));
+        assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::default() + East));
         
         let mut commands = Cursor::new([
             1, i8_into_u8(-1i8), i8_into_u8(1i8)
         ]);
-        assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::zero() + West + North));
+        assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::default() + West + North));
         
         let mut commands = Cursor::new([
             1, i8_into_u8(-2i8), i8_into_u8(1i8)
         ]);
-        assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::zero() + West * 2 + North));
+        assert_eq!(parse_next(&mut commands), Command::LookAt(Offset::default() + West * 2 + North));
         
         let mut commands = Cursor::new([2, 0]);
         assert_eq!(parse_next(&mut commands), Command::Move(North));
@@ -278,7 +278,7 @@ mod tests {
         ];
         for data in streams {
             let mut area = Area::new();
-            let bot = make_bot(&mut area, Position::zero());
+            let bot = make_bot(&mut area, Position::default());
             area.inputs.attach(bot, Box::new(Cursor::new(data)));
             area.outputs.attach(bot, Box::new(vec![]));
             area.act(bot);
@@ -291,9 +291,9 @@ mod tests {
     #[test]
     fn win() {
         let mut area = Area::new();
-        let bot_a = make_bot(&mut area, Position::zero());
-        let bot_b = make_bot(&mut area, Position::zero() + East);
-        let block = make_block(&mut area, Position::zero() + East * 2);
+        let bot_a = make_bot(&mut area, Position::default());
+        let bot_b = make_bot(&mut area, Position::default() + East);
+        let block = make_block(&mut area, Position::default() + East * 2);
         
         area.inputs.attach(bot_a, Box::new(Cursor::new([2, 1])));
         area.inputs.attach(bot_b, Box::new(Cursor::new([])));
@@ -310,9 +310,9 @@ mod tests {
         let entities = area.all_actors();
         assert_eq!(entities, &[bot_a]);
         
-        assert_eq!(area.positions.of(bot_a), Some(Position::zero() + East));
+        assert_eq!(area.positions.of(bot_a), Some(Position::default() + East));
         assert_eq!(area.positions.of(bot_b), None);
-        assert_eq!(area.positions.of(block), Some(Position::zero() + East * 2));
+        assert_eq!(area.positions.of(block), Some(Position::default() + East * 2));
         
         assert_eq!(area.participants_in_waiting.len(), 1);
     }
@@ -333,11 +333,11 @@ mod tests {
             let output = Rc::new(RefCell::new(Vec::<u8>::new()));
             {
                 let mut area = Area::new();
-                let bot = make_bot(&mut area, Position::zero());
+                let bot = make_bot(&mut area, Position::default());
                 area.inputs.attach(bot, Box::new(Cursor::new(instream)));
-                make_abyss(&mut area, Position::zero() + North);
-                make_block(&mut area, Position::zero() + West);
-                make_block(&mut area, Position::zero() + West * 2);
+                make_abyss(&mut area, Position::default() + North);
+                make_block(&mut area, Position::default() + West);
+                make_block(&mut area, Position::default() + West * 2);
                 
                 let shared = SharedWrite::new(output.clone());
                 area.outputs.attach(bot, Box::new(shared));
@@ -357,7 +357,7 @@ mod tests {
         shared.close();
         
         let mut area = Area::new();
-        let bot = make_bot(&mut area, Position::zero());
+        let bot = make_bot(&mut area, Position::default());
         
         area.outputs.attach(bot, Box::new(shared));
         
@@ -370,7 +370,7 @@ mod tests {
     fn cooldown_after_movement() {
         let mut area = Area::new();
         
-        let mut position = Position::zero();
+        let mut position = Position::default();
         let bot = make_bot(&mut area, position);
         area.inputs.attach(bot, Box::new(Cursor::new(vec![
             2, 1,
@@ -391,7 +391,7 @@ mod tests {
     fn cooldown_after_drilling() {
         let mut area = Area::new();
         
-        let mut position = Position::zero();
+        let mut position = Position::default();
         let bot = make_bot(&mut area, position);
         area.inputs.attach(bot, Box::new(Cursor::new(vec![
             3, 1,

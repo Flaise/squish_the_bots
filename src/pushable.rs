@@ -135,10 +135,10 @@ impl Area {
 
 #[test]
 fn test_drill() {
-    for dir in Direction::all() {
+    for dir in Direction::all().iter() {
         for component in vec![Pushable::Squishable, Pushable::Heavy] {
-            let origin = Position::zero();
-            let destination = origin + dir;
+            let origin = Position::default();
+            let destination = origin + *dir;
             
             let mut area = Area::new();
             
@@ -149,14 +149,14 @@ fn test_drill() {
             area.positions.attach(target, destination);
             area.pushables.attach(target, Pushable::Squishable);
             
-            area.drill(bot, dir);
+            area.drill(bot, *dir);
             assert_eq!(area.positions.of(bot), Some(destination));
             assert_eq!(area.positions.of(target), None);
         }
         
         {
-            let origin = Position::zero();
-            let destination = origin + dir;
+            let origin = Position::default();
+            let destination = origin + *dir;
             
             let mut area = Area::new();
             
@@ -167,7 +167,7 @@ fn test_drill() {
             area.positions.attach(target, destination);
             area.pushables.attach(target, Pushable::DestroysEnterer);
             
-            area.drill(bot, dir);
+            area.drill(bot, *dir);
             assert_eq!(area.positions.of(bot), None);
             assert_eq!(area.positions.of(target), Some(destination));
         }

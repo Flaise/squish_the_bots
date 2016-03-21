@@ -87,8 +87,8 @@ fn generate_area(participants: Vec<(Box<Read>, Box<Write>)>) -> Area {
     }
     
     let outer_bounds = Rectangle::corners(
-        Position::zero() + West + North,
-        Position::zero() + East * (length + 1) + South * (length + 1)
+        Position::default() + West + North,
+        Position::default() + East * (length + 1) + South * (length + 1)
     );
     for position in outer_bounds {
         if bounds.contains(position) {
@@ -120,19 +120,19 @@ fn random_unoccupied_position_list(area: &Area, bounds: Rectangle, limit: usize)
 #[test]
 fn emptiness() {
     let area = Area::new();
-    let rect = Rectangle::corners(Position::zero(), Position::zero());
-    assert_eq!(unoccupied_positions(&area, rect), vec![Position::zero()]);
+    let rect = Rectangle::corners(Position::default(), Position::default());
+    assert_eq!(unoccupied_positions(&area, rect), vec![Position::default()]);
     for _ in 0..1000 {
-        assert_eq!(random_unoccupied_position(&area, rect), Some(Position::zero()));
+        assert_eq!(random_unoccupied_position(&area, rect), Some(Position::default()));
     }
     
     let area = Area::new();
-    let rect = Rectangle::corners(Position::zero(), Position::zero() + South);
+    let rect = Rectangle::corners(Position::default(), Position::default() + South);
     assert_eq!(unoccupied_positions(&area, rect),
-               vec![Position::zero(), Position::zero() + South]);
+               vec![Position::default(), Position::default() + South]);
     for _ in 0..1000 {
         let position = random_unoccupied_position(&area, rect);
-        assert!(position == Some(Position::zero()) || position == Some(Position::zero() + South));
+        assert!(position == Some(Position::default()) || position == Some(Position::default() + South));
     }
 }
 
@@ -172,8 +172,8 @@ fn outer_boundaries() {
         let bounds = Rectangle::wh(East * length + South * length);
         
         let outer_bounds = Rectangle::corners(
-            Position::zero() + West + North,
-            Position::zero() + East * (length + 1) + South * (length + 1)
+            Position::default() + West + North,
+            Position::default() + East * (length + 1) + South * (length + 1)
         );
         
         for position in outer_bounds {

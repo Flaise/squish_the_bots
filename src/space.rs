@@ -1,18 +1,18 @@
-use std::ops::{Add, Shr, Mul};
-use std::cmp::{max, min};
+use std::ops::{Add, Sub, Shr, Mul, Deref};
+use vector::*;
 use self::Direction::*;
 
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Direction {
-    North,
-    East,
-    South,
-    West,
+    North = 0,
+    East = 1,
+    South = 2,
+    West = 3,
 }
 impl Direction {
-    pub fn all() -> Vec<Direction> {
-        vec![North, East, South, West]
+    pub fn all() -> [Direction; 4] {
+        [North, East, South, West]
     }
 }
 impl Mul<i32> for Direction {
@@ -32,29 +32,37 @@ impl Mul<Direction> for i32 {
 }
 
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct Offset {
-    x: i32,
-    y: i32,
-}
+#[derive(Copy, Clone, PartialEq, Debug, Default)]
+pub struct Offset(Vector2<i32>);
 impl Offset {
     fn new(x: i32, y: i32) -> Offset {
-        Offset {
+        Offset(Vector2 {
             x: x,
             y: y,
-        }
-    }
-    pub fn zero() -> Offset {
-        Offset { x: 0, y: 0 }
+        })
     }
 }
+impl Deref for Offset {
+    type Target = Vector2<i32>;
+
+    fn deref(&self) -> &Vector2<i32> {
+        &self.0
+    }
+}
+impl Into<Vector2<i32>> for Offset {
+    fn into(self) -> Vector2<i32> {
+        self.0
+    }
+}
+
+
 impl From<Direction> for Offset {
     fn from(other: Direction) -> Self {
         match other {
-            North => Offset { x: 0, y: -1 },
-            East => Offset { x: 1, y: 0 },
-            South => Offset { x: 0, y: 1 },
-            West => Offset { x: -1, y: 0 },
+            North => Offset::new(0, -1),
+            East => Offset::new(1, 0),
+            South => Offset::new(0, 1),
+            West => Offset::new(-1, 0),
         }
     }
 }
@@ -62,72 +70,62 @@ impl Add<Position> for Offset {
     type Output = Position;
     
     fn add(self, other: Position) -> Position {
-        Position {
-            x: self.x + other.x,
-            y: self.y + other.y,
-        }
+        Position(*self + *other)
     }
 }
 impl Mul<i32> for Offset {
     type Output = Offset;
     
     fn mul(self, other: i32) -> Offset {
-        Offset {
-            x: self.x * other,
-            y: self.y * other,
-        }
+        Offset(*self * other)
     }
 }
 
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct Position {
-    x: i32,
-    y: i32,
-}
+#[derive(Copy, Clone, PartialEq, Debug, Default)]
+pub struct Position(Vector2<i32>);
 impl Position {
     pub fn new(x: i32, y: i32) -> Position {
-        Position {
+        Position(Vector2 {
             x: x,
             y: y,
-        }
-    }
-    pub fn zero() -> Position {
-        Position { x: 0, y: 0 }
+        })
     }
 }
+impl Deref for Position {
+    type Target = Vector2<i32>;
+
+    fn deref(&self) -> &Vector2<i32> {
+        &self.0
+    }
+}
+impl Into<Vector2<i32>> for Position {
+    fn into(self) -> Vector2<i32> {
+        self.0
+    }
+}
+
+
 impl Shr<Position> for Position {
     type Output = Offset;
     
     fn shr(self, other: Position) -> Offset {
-        Offset {
-            x: other.x - self.x,
-            y: other.y - self.y,
-        }
+        Offset(*self >> *other)
     }
 }
-
 
 impl<R: Into<Offset>+Sized> Add<R> for Position {
     type Output = Position;
     
     fn add(self, other: R) -> Position {
-        let offset = other.into();
-        Position {
-            x: self.x + offset.x,
-            y: self.y + offset.y,
-        }
+        Position(*self + *other.into())
     }
 }
 impl<R: Into<Offset>+Sized> Add<R> for Offset {
     type Output = Offset;
     
     fn add(self, other: R) -> Offset {
-        let offset = other.into();
-        Offset {
-            x: self.x + offset.x,
-            y: self.y + offset.y,
-        }
+        Offset(*self + *other.into())
     }
 }
 impl<R: Into<Offset>+Sized> Add<R> for Direction {
@@ -135,13 +133,12 @@ impl<R: Into<Offset>+Sized> Add<R> for Direction {
     
     fn add(self, other: R) -> Offset {
         let a: Offset = self.into();
-        let b: Offset = other.into();
-        a + b
+        Offset(*a + *other.into())
     }
 }
 
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub struct Rectangle {
     topleft: Position,
     size: Offset,
@@ -156,29 +153,23 @@ impl Rectangle {
     
     pub fn wh(size: Offset) -> Rectangle {
         Rectangle {
-            topleft: Position::zero(),
+            topleft: Position::default(),
             size: size,
         }
     }
     
     pub fn corners(a: Position, b: Position) -> Rectangle {
-        let topleft = Position {
-            x: min(a.x, b.x),
-            y: min(a.y, b.y),
-        };
-        let bottomright = Position {
-            x: max(a.x, b.x),
-            y: max(a.y, b.y),
-        };
+        let topleft = Position(vec_min(a, b));
+        let bottomright = Position(vec_max(a, b));
         Rectangle::xywh(topleft, topleft >> bottomright + South + East)
     }
     
     pub fn corner_offsets(a: Offset, b: Offset) -> Rectangle {
-        Rectangle::corners(a + Position::zero(), b + Position::zero())
+        Rectangle::corners(a + Position::default(), b + Position::default())
     }
     
     pub fn contains(self, position: Position) -> bool {
-        let mut p = position;
+        let mut p = *position;
         let bottomright = self.topleft + self.size;
         if bottomright.x < self.topleft.x {
             p.x -= 1;
@@ -201,14 +192,14 @@ impl IntoIterator for Rectangle {
     fn into_iter(self) -> Self::IntoIter {
         RectangleContents {
             subject: self,
-            cursor: Offset::zero(),
+            cursor: Vector2::default(),
         }
     }
 }
 
 pub struct RectangleContents {
     subject: Rectangle,
-    cursor: Offset,
+    cursor: Vector2<i32>,
 }
 impl Iterator for RectangleContents {
     type Item = Position;
@@ -217,7 +208,7 @@ impl Iterator for RectangleContents {
         if self.cursor.y.abs() >= self.subject.size.y.abs() {
             return None;
         }
-        let result = self.subject.topleft + self.cursor;
+        let result = self.subject.topleft + Offset(self.cursor);
         self.cursor.x += self.subject.size.x.signum();
         if self.cursor.x.abs() >= self.subject.size.x.abs() {
             self.cursor.y += self.subject.size.y.signum();
@@ -254,8 +245,8 @@ fn add_directions() {
 
 #[test]
 fn add_direction_offset() {
-    assert_eq!(North + Offset::zero(), Offset::new(0, -1));
-    assert_eq!(Offset::zero() + North, Offset::new(0, -1));
+    assert_eq!(North + Offset::default(), Offset::new(0, -1));
+    assert_eq!(Offset::default() + North, Offset::new(0, -1));
 }
 
 #[test]
@@ -300,14 +291,14 @@ fn containment() {
     assert!(!Rectangle::wh(Offset::new(-2, -2)).contains(Position::new(-2, 0)));
     
     let rec = Rectangle::corner_offsets(North * 2 + West * 2, South * 4 + East * 3);
-    assert!(rec.contains(Position::zero() + North * 2));
-    assert!(rec.contains(Position::zero() + North * 2 + West * 2));
-    assert!(rec.contains(Position::zero() + North * 2 + East * 3));
+    assert!(rec.contains(Position::default() + North * 2));
+    assert!(rec.contains(Position::default() + North * 2 + West * 2));
+    assert!(rec.contains(Position::default() + North * 2 + East * 3));
     
     let rec = Rectangle::corner_offsets(South * 4 + East * 3, North * 2 + West * 2);
-    assert!(rec.contains(Position::zero() + North * 2));
-    assert!(rec.contains(Position::zero() + North * 2 + West * 2));
-    assert!(rec.contains(Position::zero() + North * 2 + East * 3));
+    assert!(rec.contains(Position::default() + North * 2));
+    assert!(rec.contains(Position::default() + North * 2 + West * 2));
+    assert!(rec.contains(Position::default() + North * 2 + East * 3));
 }
 
 #[test]
@@ -319,25 +310,25 @@ fn direction_equality() {
 #[test]
 fn rectangle_iteration() {
     let rect = Rectangle::wh(Offset::new(1, 1));
-    assert_eq!(rect.into_iter().collect::<Vec<_>>(), vec![Position::zero()]);
+    assert_eq!(rect.into_iter().collect::<Vec<_>>(), vec![Position::default()]);
     
     let rect = Rectangle::wh(Offset::new(2, 1));
     assert_eq!(rect.into_iter().collect::<Vec<_>>(),
-               vec![Position::zero(), Position::zero() + East]);
+               vec![Position::default(), Position::default() + East]);
     
     let rect = Rectangle::wh(Offset::new(1, 2));
     assert_eq!(rect.into_iter().collect::<Vec<_>>(),
-               vec![Position::zero(), Position::zero() + South]);
+               vec![Position::default(), Position::default() + South]);
     
     let rect = Rectangle::wh(Offset::new(2, 2));
     assert_eq!(rect.into_iter().collect::<Vec<_>>(),
-               vec![Position::zero(), Position::zero() + East, Position::zero() + South,
-                    Position::zero() + South + East]);
+               vec![Position::default(), Position::default() + East, Position::default() + South,
+                    Position::default() + South + East]);
 }
 
 #[test]
 fn rectangle_iteration_2() {
-    let position = Position::zero() + North * 5 + West * 2;
+    let position = Position::default() + North * 5 + West * 2;
     let rect = Rectangle::xywh(position, East * 20 + South * 19);
     for position in rect {
         assert!(rect.contains(position));

@@ -19,6 +19,7 @@ mod positioned;
 mod pushable;
 mod session;
 mod space;
+mod vector;
 
 mod tests;
 
