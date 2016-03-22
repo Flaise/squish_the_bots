@@ -1,7 +1,6 @@
 #![deny(unused_must_use)]
 
 extern crate rand;
-extern crate hyper;
 extern crate getopts;
 
 #[macro_use]
@@ -22,7 +21,6 @@ mod space;
 mod vector;
 
 mod tests;
-
 mod example_bots;
 
 
@@ -30,12 +28,10 @@ use std::env;
 use std::net::{AddrParseError, SocketAddr};
 use std::str::FromStr;
 use std::time::Duration;
+use std::fs::File;
+use std::io::Write;
 use network::*;
 use getopts::Options;
-use hyper::server::{Request, Response};
-use hyper::status::StatusCode;
-use hyper::header::{ContentType};
-use hyper::mime::{Mime, TopLevel, SubLevel};
 
 
 fn main() {
@@ -44,7 +40,7 @@ fn main() {
     let args = args.collect::<Vec<_>>();
     
     let mut options = Options::new();
-    options.reqopt("w", "web", "Port to accept HTTP requests on", "PORT");
+    options.reqopt("o", "static-directory", "Directory to output static files to.", "DIR");
     options.reqopt("s", "simulation", "Port to accept bot socket connections on", "PORT");
     options.optopt("e", "simulation-external",
                    "External port of simulation, if different than internal.", "PORT");
@@ -57,15 +53,7 @@ fn main() {
         }
     };
     
-    let web_port = matches.opt_str("web").unwrap();
     let sim_port = matches.opt_str("simulation").unwrap();
-    
-    let web_address: SocketAddr =
-        match FromStr::from_str(&("0.0.0.0:".to_string() + &web_port)) {
-            Err(AddrParseError(..)) => panic!("Invalid web port."),
-            Ok(address) => address,
-        };
-    
     let sim_address: SocketAddr =
         match FromStr::from_str(&("0.0.0.0:".to_string() + &sim_port)) {
             Err(AddrParseError(..)) => panic!("Invalid simulation port."),
@@ -80,27 +68,19 @@ fn main() {
     let external_port = matches.opt_str("simulation-external")
                                .unwrap_or(simulation.addr.port().to_string());
     
-    let index_page = include_str!("./index.html");
-    let index_page = index_page.replace("#####", &*external_port);
-    
-    let web_server = hyper::Server::http(web_address).unwrap()
-        .handle(move|req: Request, res: Response| {
-            handler(req, res, &index_page)
-        }).unwrap();
-    println!("Waiting for HTTP requests on {}", web_server.socket);
+    let static_dir = matches.opt_str("static-directory").unwrap();
+    write_statics(&static_dir, &external_port);
     
     simulation.join().unwrap().unwrap();
 }
 
-// Rust doesn't allow types with destructors as constants.
-// See https://github.com/rust-lang/rfcs/issues/913
-// const text_html: ContentType = ContentType(Mime(TopLevel::Text, SubLevel::Html, vec![]));
-
-fn handler(_: Request, mut res: Response, index_page: &str) {
-    {
-        let mut status = res.status_mut();
-        *status = StatusCode::Ok;
-    }
-    res.headers_mut().set(ContentType(Mime(TopLevel::Text, SubLevel::Html, vec![])));
-    res.send(index_page.as_ref()).unwrap();
+fn write_statics(static_dir: &String, external_port: &str) {
+    let index_page = include_str!("./index.html");
+    let index_page = index_page.replace("#####", &external_port);
+    
+    let mut f = File::create(static_dir.to_string() + "/index.html").unwrap();
+    f.write_all(index_page.as_bytes()).unwrap();
+    
+    let mut f = File::create(static_dir.to_string() + "/demo.gif").unwrap();
+    f.write_all(include_bytes!("./demo.gif")).unwrap();
 }
